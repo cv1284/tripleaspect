@@ -1,0 +1,99 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Base ──────────────────────────────────────────────── */
+:root {
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  background-color: #07070d;
+  color: #e2e8f0;
+  font-family: 'Inter', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Scrollbar ──────────────────────────────────────────── */
+::-webkit-scrollbar          { width: 6px; height: 6px; }
+::-webkit-scrollbar-track    { background: transparent; }
+::-webkit-scrollbar-thumb    { background: #2a2a45; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #3a3a60; }
+
+/* ─── Focus ring ─────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid rgba(99,102,241,0.7);
+  outline-offset: 2px;
+}
+
+/* ─── Shared component classes ───────────────────────────── */
+@layer components {
+  .card {
+    @apply bg-surface-3 border border-surface-border rounded-xl;
+  }
+  .input {
+    @apply bg-surface-2 border border-surface-border rounded-lg px-3 py-2
+           text-sm text-slate-200 placeholder:text-slate-600
+           focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30
+           transition-colors w-full;
+  }
+  .label {
+    @apply text-2xs font-mono font-medium text-slate-500 uppercase tracking-widest;
+  }
+  .btn-primary {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg
+           bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700
+           text-white text-sm font-medium
+           transition-colors cursor-pointer border-0;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 px-3 py-2 rounded-lg
+           text-slate-400 hover:text-slate-200 hover:bg-surface-4
+           text-sm font-medium transition-colors cursor-pointer border-0 bg-transparent;
+  }
+  .btn-danger {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg
+           bg-red-500/10 hover:bg-red-500/20 text-red-400
+           text-sm font-medium transition-colors cursor-pointer border border-red-500/20;
+  }
+  .status-badge {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-2xs font-mono font-medium;
+  }
+  .section-header {
+    @apply text-2xs font-mono font-medium text-slate-500 uppercase tracking-widest mb-3;
+  }
+  .divider {
+    @apply border-t border-surface-border;
+  }
+}
+
+/* ─── Drag preview ───────────────────────────────────────── */
+.drag-item-dragging {
+  opacity: 0.5;
+  outline: 1px dashed rgba(99,102,241,0.4);
+  border-radius: 10px;
+}
+.drag-item-over {
+  outline: 1px solid rgba(99,102,241,0.6);
+  background: rgba(99,102,241,0.05);
+  border-radius: 10px;
+}
+
+/* ─── Video embed container ──────────────────────────────── */
+.video-wrapper {
+  position: relative;
+  padding-bottom: 56.25%;  /* 16:9 */
+  height: 0;
+  overflow: hidden;
+}
+.video-wrapper iframe {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  border: 0;
+}
