@@ -73,7 +73,7 @@ export default function LoginPage() {
               <button
                 key={m}
                 type="button"
-                onClick={() => { setMode(m); setError(null); }}
+                onClick={() => { setMode(m); setError(null); setPassword(''); }}
                 className={`flex-1 py-2 text-sm font-medium transition-colors ${
                   mode === m
                     ? 'bg-surface-4 text-slate-200'
