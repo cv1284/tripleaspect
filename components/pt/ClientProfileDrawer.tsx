@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import {
   ClientRow, AgreementStatus, AgreementModel,
   OnboardingDocKey, getOnboardingDocs,
@@ -211,6 +212,13 @@ export default function ClientProfileDrawer({ client, onClose, onSaved }: Props)
             </h2>
             <p className="text-2xs font-mono text-slate-500 truncate">{client.email}</p>
           </div>
+          <Link
+            href={`/pt/sessions/builder?clientId=${client?.id}`}
+            onClick={onClose}
+            className="btn-primary py-1.5 text-xs px-3"
+          >
+            + Session
+          </Link>
           <button onClick={onClose} className="btn-ghost px-2 py-1 text-lg leading-none">×</button>
         </div>
 

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ClientRow } from '@/types/database';
 import ClientDirectory from '@/components/pt/ClientDirectory';
 import ClientProfileDrawer from '@/components/pt/ClientProfileDrawer';
+import AddClientModal from '@/components/pt/AddClientModal';
 
 interface Props {
   clients: ClientRow[];
@@ -11,11 +12,16 @@ interface Props {
 }
 
 export default function ClientsPageClient({ clients: initial, ptId }: Props) {
-  const [clients,  setClients]  = useState<ClientRow[]>(initial);
-  const [selected, setSelected] = useState<ClientRow | null>(null);
+  const [clients,       setClients]       = useState<ClientRow[]>(initial);
+  const [selected,      setSelected]      = useState<ClientRow | null>(null);
+  const [showAddModal,  setShowAddModal]  = useState(false);
 
   function handleSaved(updated: ClientRow) {
     setClients(prev => prev.map(c => c.id === updated.id ? updated : c));
+  }
+
+  function handleAdded(newClient: ClientRow) {
+    setClients(prev => [newClient, ...prev]);
   }
 
   return (
@@ -24,6 +30,7 @@ export default function ClientsPageClient({ clients: initial, ptId }: Props) {
         <ClientDirectory
           clients={clients}
           onSelectClient={setSelected}
+          onAddClient={() => setShowAddModal(true)}
         />
       </div>
 
@@ -32,6 +39,13 @@ export default function ClientsPageClient({ clients: initial, ptId }: Props) {
         onClose={() => setSelected(null)}
         onSaved={handleSaved}
       />
+
+      {showAddModal && (
+        <AddClientModal
+          onClose={() => setShowAddModal(false)}
+          onAdded={handleAdded}
+        />
+      )}
     </div>
   );
 }

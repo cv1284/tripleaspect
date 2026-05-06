@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import Link from 'next/link';
 import { ClientRow, AgreementStatus, AgreementModel, SessionCategory } from '@/types/database';
 import {
   STATUS_CONFIG, CATEGORY_CONFIG,
@@ -10,8 +11,9 @@ import {
 // ─── Types ────────────────────────────────────────────────
 
 interface Props {
-  clients:       ClientRow[];
+  clients:        ClientRow[];
   onSelectClient: (client: ClientRow) => void;
+  onAddClient:    () => void;
 }
 
 type SortKey = 'name' | 'status' | 'renewal' | 'sessions' | 'onboarding';
@@ -130,7 +132,7 @@ function FilterBar({
 
 // ─── Main Component ───────────────────────────────────────
 
-export default function ClientDirectory({ clients, onSelectClient }: Props) {
+export default function ClientDirectory({ clients, onSelectClient, onAddClient }: Props) {
   const [search,       setSearch]       = useState('');
   const [statusFilter, setStatusFilter] = useState<AgreementStatus | 'all'>('all');
   const [sortKey,      setSortKey]      = useState<SortKey>('name');
@@ -192,7 +194,7 @@ export default function ClientDirectory({ clients, onSelectClient }: Props) {
           <h1 className="text-xl font-semibold text-slate-100 tracking-tight">Client Directory</h1>
           <p className="text-sm text-slate-500 font-mono mt-0.5">{clients.length} clients · {filtered.length} shown</p>
         </div>
-        <button className="btn-primary">
+        <button onClick={onAddClient} className="btn-primary">
           <span>+</span> Add Client
         </button>
       </div>
@@ -269,12 +271,20 @@ export default function ClientDirectory({ clients, onSelectClient }: Props) {
                   <OnboardingIndicator complete={complete} score={score} />
 
                   {/* Actions */}
-                  <button
-                    onClick={e => { e.stopPropagation(); onSelectClient(client); }}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity btn-ghost py-1 px-2 text-xs"
-                  >
-                    Edit →
-                  </button>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                    <Link
+                      href={`/pt/sessions/builder?clientId=${client.id}`}
+                      className="btn-ghost py-1 px-2 text-xs text-indigo-400 hover:text-indigo-300"
+                    >
+                      + Session
+                    </Link>
+                    <button
+                      onClick={() => onSelectClient(client)}
+                      className="btn-ghost py-1 px-2 text-xs"
+                    >
+                      Edit →
+                    </button>
+                  </div>
                 </div>
               );
             })}
