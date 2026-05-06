@@ -7,15 +7,25 @@ export default async function RootPage() {
 
   if (!user) redirect('/login');
 
-  const { data: profile } = await supabase
+  // Fetch profile — may not exist yet if trigger hadn't run at signup time
+  let { data: profile } = await supabase
     .from('profiles')
     .select('role, id')
     .eq('id', user.id)
     .single();
 
-  if (profile?.role === 'pt') redirect('/pt/clients');
-  if (profile?.role === 'client') redirect(`/portal/${user.id}`);
+  // Create the profile row if missing (covers existing auth users)
+  if (!profile) {
+    await supabase.from('profiles').upsert({
+      id:    user.id,
+      email: user.email!,
+      role:  'client',
+    });
+    profile = { id: user.id, role: 'client' };
+  }
 
-  // Fallback — profile row not yet created
-  redirect('/login');
+  if (profile.role === 'pt')     redirect('/pt/clients');
+  if (profile.role === 'client') redirect(`/portal/${user.id}`);
+
+  redirect(`/portal/${user.id}`);
 }
