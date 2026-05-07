@@ -4,14 +4,23 @@ import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 
+type Mode = 'sign_in' | 'sign_up' | 'forgot';
+
 export default function LoginPage() {
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
-  const [mode,     setMode]     = useState<'sign_in' | 'sign_up'>('sign_in');
+  const [mode,     setMode]     = useState<Mode>('sign_in');
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState<string | null>(null);
   const [sent,     setSent]     = useState(false);
   const router = useRouter();
+
+  function switchMode(m: Mode) {
+    setMode(m);
+    setError(null);
+    setPassword('');
+    setSent(false);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -20,9 +29,26 @@ export default function LoginPage() {
 
     const supabase = createClient();
 
+    if (mode === 'forgot') {
+      const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${location.origin}/auth/reset`,
+      });
+      if (err) { setError(err.message); setLoading(false); return; }
+      setSent(true);
+      setLoading(false);
+      return;
+    }
+
     if (mode === 'sign_in') {
       const { error: err } = await supabase.auth.signInWithPassword({ email, password });
-      if (err) { setError(err.message); setLoading(false); return; }
+      if (err) {
+        const msg = err.message.toLowerCase().includes('invalid')
+          ? 'Invalid email or password. If you just signed up, check your email for a confirmation link first.'
+          : err.message;
+        setError(msg);
+        setLoading(false);
+        return;
+      }
       router.push('/');
       router.refresh();
     } else {
@@ -42,10 +68,21 @@ export default function LoginPage() {
       <div className="min-h-screen bg-surface-0 flex items-center justify-center p-6">
         <div className="text-center space-y-3 max-w-sm">
           <p className="text-3xl">✉</p>
-          <h1 className="text-lg font-semibold text-slate-200">Check your email</h1>
+          <h1 className="text-lg font-semibold text-slate-200">
+            {mode === 'forgot' ? 'Reset link sent' : 'Check your email'}
+          </h1>
           <p className="text-sm text-slate-500 font-mono">
-            Confirmation link sent to <span className="text-slate-300">{email}</span>
+            {mode === 'forgot'
+              ? <>Password reset link sent to <span className="text-slate-300">{email}</span>.</>
+              : <>Confirmation link sent to <span className="text-slate-300">{email}</span>. Click the link then sign in.</>
+            }
           </p>
+          <button
+            onClick={() => switchMode('sign_in')}
+            className="text-xs font-mono text-indigo-400 hover:text-indigo-300 underline underline-offset-2"
+          >
+            Back to sign in
+          </button>
         </div>
       </div>
     );
@@ -68,22 +105,32 @@ export default function LoginPage() {
 
         {/* Card */}
         <div className="card p-6 space-y-5">
-          <div className="flex rounded-lg overflow-hidden border border-surface-border">
-            {(['sign_in', 'sign_up'] as const).map(m => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => { setMode(m); setError(null); setPassword(''); }}
-                className={`flex-1 py-2 text-sm font-medium transition-colors ${
-                  mode === m
-                    ? 'bg-surface-4 text-slate-200'
-                    : 'text-slate-500 hover:text-slate-300'
-                }`}
-              >
-                {m === 'sign_in' ? 'Sign In' : 'Sign Up'}
-              </button>
-            ))}
-          </div>
+
+          {mode !== 'forgot' && (
+            <div className="flex rounded-lg overflow-hidden border border-surface-border">
+              {(['sign_in', 'sign_up'] as const).map(m => (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => switchMode(m)}
+                  className={`flex-1 py-2 text-sm font-medium transition-colors ${
+                    mode === m
+                      ? 'bg-surface-4 text-slate-200'
+                      : 'text-slate-500 hover:text-slate-300'
+                  }`}
+                >
+                  {m === 'sign_in' ? 'Sign In' : 'Sign Up'}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {mode === 'forgot' && (
+            <div>
+              <h2 className="text-sm font-semibold text-slate-200">Reset password</h2>
+              <p className="text-xs font-mono text-slate-500 mt-0.5">We'll email you a reset link.</p>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -98,18 +145,32 @@ export default function LoginPage() {
                 placeholder="you@example.com"
               />
             </div>
-            <div>
-              <label className="label block mb-1">Password</label>
-              <input
-                type="password"
-                required
-                minLength={8}
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="input"
-                placeholder="••••••••"
-              />
-            </div>
+
+            {mode !== 'forgot' && (
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="label">Password</label>
+                  {mode === 'sign_in' && (
+                    <button
+                      type="button"
+                      onClick={() => switchMode('forgot')}
+                      className="text-2xs font-mono text-slate-500 hover:text-slate-300 transition-colors"
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="password"
+                  required
+                  minLength={8}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  className="input"
+                  placeholder="••••••••"
+                />
+              </div>
+            )}
 
             {error && (
               <p className="text-xs font-mono text-red-400">{error}</p>
@@ -123,12 +184,22 @@ export default function LoginPage() {
               {loading ? (
                 <span className="flex items-center gap-2">
                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  {mode === 'sign_in' ? 'Signing in...' : 'Creating account...'}
+                  {mode === 'sign_in' ? 'Signing in...' : mode === 'sign_up' ? 'Creating account...' : 'Sending...'}
                 </span>
               ) : (
-                mode === 'sign_in' ? 'Sign In' : 'Create Account'
+                mode === 'sign_in' ? 'Sign In' : mode === 'sign_up' ? 'Create Account' : 'Send Reset Link'
               )}
             </button>
+
+            {mode === 'forgot' && (
+              <button
+                type="button"
+                onClick={() => switchMode('sign_in')}
+                className="w-full text-center text-xs font-mono text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                ← Back to sign in
+              </button>
+            )}
           </form>
         </div>
 
