@@ -11,7 +11,7 @@ import { createClient } from '@/lib/supabase/client';
 
 // ─── Types ────────────────────────────────────────────────
 
-type Tab = 'overview' | 'onboarding' | 'billing';
+type Tab = 'overview' | 'onboarding' | 'billing' | 'sessions';
 
 interface Props {
   client:   ClientRow | null;
@@ -112,14 +112,52 @@ function DocRow({
   );
 }
 
+// ─── Copy Portal Link ─────────────────────────────────────
+function CopyPortalLink({ clientId }: { clientId: string }) {
+  const [copied, setCopied] = useState(false);
+  function handleCopy() {
+    navigator.clipboard.writeText(`${window.location.origin}/portal/${clientId}`)
+      .then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
+  }
+  return (
+    <button
+      onClick={handleCopy}
+      className={`btn-ghost py-1.5 text-xs px-3 transition-colors ${copied ? 'text-emerald-400' : ''}`}
+      title="Copy client portal link"
+    >
+      {copied ? '✓ Copied' : '⎘ Portal link'}
+    </button>
+  );
+}
+
 // ─── Main Drawer ──────────────────────────────────────────
 
+// ─── Session row type (minimal fetch) ─────────────────────
+interface SessionRow {
+  id:             string;
+  title:          string;
+  category:       string;
+  scheduled_date: string | null;
+  completed_at:   string | null;
+}
+
+const CATEGORY_ICONS: Record<string, string> = {
+  healing: '◈', forging: '⬡', verse: '◎',
+};
+const CATEGORY_COLORS: Record<string, string> = {
+  healing: 'text-emerald-400', forging: 'text-amber-400', verse: 'text-indigo-400',
+};
+
 export default function ClientProfileDrawer({ client, onClose, onSaved }: Props) {
-  const [tab,     setTab]     = useState<Tab>('overview');
-  const [form,    setForm]    = useState<FormState | null>(null);
-  const [saving,  setSaving]  = useState(false);
-  const [error,   setError]   = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [tab,            setTab]            = useState<Tab>('overview');
+  const [form,           setForm]           = useState<FormState | null>(null);
+  const [saving,         setSaving]         = useState(false);
+  const [error,          setError]          = useState<string | null>(null);
+  const [success,        setSuccess]        = useState(false);
+  const [sessions,       setSessions]       = useState<SessionRow[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [deletingId,     setDeletingId]     = useState<string | null>(null);
+  const [confirmDelete,  setConfirmDelete]  = useState<string | null>(null);
 
   // Sync form when client changes
   useEffect(() => {
@@ -128,8 +166,41 @@ export default function ClientProfileDrawer({ client, onClose, onSaved }: Props)
       setTab('overview');
       setError(null);
       setSuccess(false);
+      setSessions([]);
     }
   }, [client]);
+
+  // Fetch sessions when sessions tab opens
+  useEffect(() => {
+    if (tab === 'sessions' && client && sessions.length === 0 && !sessionsLoading) {
+      fetchSessions();
+    }
+  }, [tab, client]);
+
+  async function fetchSessions() {
+    if (!client) return;
+    setSessionsLoading(true);
+    const supabase = createClient();
+    const { data } = await supabase
+      .from('sessions')
+      .select('id, title, category, scheduled_date, completed_at')
+      .eq('client_id', client.id)
+      .order('scheduled_date', { ascending: false });
+    setSessions(data ?? []);
+    setSessionsLoading(false);
+  }
+
+  async function handleDeleteSession(sessionId: string) {
+    if (confirmDelete !== sessionId) {
+      setConfirmDelete(sessionId);
+      return;
+    }
+    setDeletingId(sessionId);
+    setConfirmDelete(null);
+    const res = await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' });
+    setDeletingId(null);
+    if (res.ok) setSessions(prev => prev.filter(s => s.id !== sessionId));
+  }
 
   // Close on Escape
   useEffect(() => {
@@ -212,6 +283,7 @@ export default function ClientProfileDrawer({ client, onClose, onSaved }: Props)
             </h2>
             <p className="text-2xs font-mono text-slate-500 truncate">{client.email}</p>
           </div>
+          <CopyPortalLink clientId={client?.id ?? ''} />
           <Link
             href={`/pt/sessions/builder?clientId=${client?.id}`}
             onClick={onClose}
@@ -224,7 +296,7 @@ export default function ClientProfileDrawer({ client, onClose, onSaved }: Props)
 
         {/* ── Tabs ──────────────────────────────────────── */}
         <div className="flex items-center gap-0 px-6 pt-4 border-b border-surface-border flex-shrink-0">
-          {(['overview', 'onboarding', 'billing'] as Tab[]).map(t => (
+          {(['overview', 'sessions', 'onboarding', 'billing'] as Tab[]).map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -234,7 +306,7 @@ export default function ClientProfileDrawer({ client, onClose, onSaved }: Props)
                   : 'border-transparent text-slate-500 hover:text-slate-300'
               }`}
             >
-              {t}
+              {t === 'sessions' ? 'Sessions' : t.charAt(0).toUpperCase() + t.slice(1)}
             </button>
           ))}
         </div>
@@ -341,6 +413,82 @@ export default function ClientProfileDrawer({ client, onClose, onSaved }: Props)
                 <p className="text-2xl font-mono font-bold text-slate-200">{client.sessions_this_week}</p>
                 <p className="text-xs font-mono text-slate-600">sessions logged</p>
               </div>
+            </>
+          )}
+
+          {/* ═══ SESSIONS TAB ═══ */}
+          {tab === 'sessions' && (
+            <>
+              <div className="flex items-center justify-between mb-1">
+                <p className="section-header mb-0">Programme Sessions</p>
+                <Link
+                  href={`/pt/sessions/builder?clientId=${client?.id}`}
+                  onClick={onClose}
+                  className="text-2xs font-mono text-indigo-400 hover:text-indigo-300 transition-colors"
+                >
+                  + New session →
+                </Link>
+              </div>
+
+              {sessionsLoading && (
+                <div className="py-10 flex justify-center">
+                  <span className="w-5 h-5 border-2 border-slate-600 border-t-indigo-400 rounded-full animate-spin" />
+                </div>
+              )}
+
+              {!sessionsLoading && sessions.length === 0 && (
+                <div className="py-10 text-center text-slate-600 font-mono text-sm">
+                  No sessions yet.
+                </div>
+              )}
+
+              {!sessionsLoading && sessions.length > 0 && (
+                <div className="space-y-2">
+                  {sessions.map(s => {
+                    const icon  = CATEGORY_ICONS[s.category]  ?? '◎';
+                    const color = CATEGORY_COLORS[s.category] ?? 'text-slate-400';
+                    const isDone = !!s.completed_at;
+                    const isConfirming = confirmDelete === s.id;
+                    const isDeleting   = deletingId   === s.id;
+
+                    return (
+                      <div
+                        key={s.id}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-surface-2 border border-surface-border group"
+                      >
+                        <span className={`text-sm flex-shrink-0 ${color}`}>{icon}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-slate-200 truncate">{s.title}</p>
+                          <p className="text-2xs font-mono text-slate-600">
+                            {s.scheduled_date ?? 'Unscheduled'}
+                            {isDone && <span className="ml-2 text-emerald-500">✓ Done</span>}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <Link
+                            href={`/pt/sessions/builder?clientId=${client?.id}&sessionId=${s.id}`}
+                            onClick={onClose}
+                            className="btn-ghost py-1 px-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            Edit
+                          </Link>
+                          <button
+                            onClick={() => handleDeleteSession(s.id)}
+                            disabled={isDeleting}
+                            className={`py-1 px-2 rounded text-xs font-mono transition-colors opacity-0 group-hover:opacity-100 ${
+                              isConfirming
+                                ? 'bg-red-500/20 text-red-400 border border-red-500/30 opacity-100'
+                                : 'btn-ghost text-slate-600 hover:text-red-400'
+                            }`}
+                          >
+                            {isDeleting ? '…' : isConfirming ? 'Confirm?' : '✕'}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </>
           )}
 

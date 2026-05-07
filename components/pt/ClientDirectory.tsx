@@ -1,5 +1,7 @@
 'use client';
 
+'use client';
+
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { ClientRow, AgreementStatus, AgreementModel, SessionCategory } from '@/types/database';
@@ -67,6 +69,29 @@ function RenewalCell({ renewalDate }: { renewalDate: string | null }) {
   if (days < 0)  return <span className="text-red-400 text-sm font-mono">Expired</span>;
   if (days <= 7) return <span className="text-amber-400 text-sm font-mono animate-pulse">{days}d</span>;
   return <span className="text-slate-400 text-sm font-mono">{days}d</span>;
+}
+
+function CopyPortalLink({ clientId }: { clientId: string }) {
+  const [copied, setCopied] = useState(false);
+
+  function handleCopy(e: React.MouseEvent) {
+    e.stopPropagation();
+    const url = `${window.location.origin}/portal/${clientId}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  return (
+    <button
+      onClick={handleCopy}
+      className={`btn-ghost py-1 px-2 text-xs transition-colors ${copied ? 'text-emerald-400' : 'text-slate-500'}`}
+      title="Copy client portal link"
+    >
+      {copied ? '✓ Copied' : '⎘ Portal'}
+    </button>
+  );
 }
 
 function Avatar({ name, size = 'md' }: { name: string | null; size?: 'sm' | 'md' }) {
@@ -272,6 +297,7 @@ export default function ClientDirectory({ clients, onSelectClient, onAddClient }
 
                   {/* Actions */}
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                    <CopyPortalLink clientId={client.id} />
                     <Link
                       href={`/pt/sessions/builder?clientId=${client.id}`}
                       className="btn-ghost py-1 px-2 text-xs text-indigo-400 hover:text-indigo-300"

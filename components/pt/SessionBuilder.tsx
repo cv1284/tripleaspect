@@ -79,8 +79,12 @@ function ExercisePicker({
   onSelect:   (ex: Exercise) => void;
   onClose:    () => void;
 }) {
-  const [search, setSearch] = useState('');
+  const [search,    setSearch]    = useState('');
   const [catFilter, setCatFilter] = useState<SessionCategory | 'all'>('all');
+  const [creating,  setCreating]  = useState(false);
+  const [newEx,     setNewEx]     = useState({ name: '', category: category as string, description: '', coaching_cues: '', tags: '' });
+  const [saving,    setSaving]    = useState(false);
+  const [createErr, setCreateErr] = useState<string | null>(null);
 
   const filtered = exercises.filter(e => {
     if (catFilter !== 'all' && e.category !== catFilter) return false;
@@ -91,70 +95,162 @@ function ExercisePicker({
     return true;
   });
 
+  async function handleCreate() {
+    if (!newEx.name.trim()) { setCreateErr('Name is required.'); return; }
+    setSaving(true);
+    setCreateErr(null);
+    const res  = await fetch('/api/exercises', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(newEx),
+    });
+    const data = await res.json();
+    setSaving(false);
+    if (!res.ok) { setCreateErr(data.error ?? 'Failed to create exercise'); return; }
+    onSelect(data as Exercise);
+    onClose();
+  }
+
   return (
     <>
       <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 animate-fade-in" onClick={onClose} />
       <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 max-w-lg mx-auto bg-surface-2 border border-surface-border rounded-2xl z-50 shadow-surface animate-scale-in overflow-hidden" style={{ maxHeight: '70vh' }}>
+
+        {/* Header */}
         <div className="p-4 border-b border-surface-border">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-slate-200">Add Exercise</h3>
-            <button onClick={onClose} className="btn-ghost px-2 text-lg leading-none">×</button>
+            <div className="flex items-center gap-3">
+              <h3 className="font-semibold text-slate-200">{creating ? 'Create Exercise' : 'Add Exercise'}</h3>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => { setCreating(c => !c); setCreateErr(null); }}
+                className={`text-xs font-mono px-2.5 py-1 rounded-lg border transition-colors ${
+                  creating
+                    ? 'bg-surface-4 text-slate-300 border-surface-border'
+                    : 'text-indigo-400 border-indigo-500/30 hover:bg-indigo-500/10'
+                }`}
+              >
+                {creating ? '← Back to library' : '+ Create new'}
+              </button>
+              <button onClick={onClose} className="btn-ghost px-2 text-lg leading-none">×</button>
+            </div>
           </div>
-          <input
-            autoFocus
-            type="text"
-            placeholder="Search exercises, tags..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="input mb-2"
-          />
-          <div className="flex gap-1">
-            {(['all', 'healing', 'forging', 'verse'] as const).map(c => {
-              const cfg = c === 'all' ? null : CATEGORY_CONFIG[c];
-              return (
-                <button
-                  key={c}
-                  onClick={() => setCatFilter(c)}
-                  className={`px-2.5 py-1 rounded-full text-2xs font-mono transition-colors ${
-                    catFilter === c
-                      ? c === 'all' ? 'bg-slate-600 text-white' : `${cfg!.bg} ${cfg!.color}`
-                      : 'text-slate-500 hover:text-slate-300 bg-surface-3'
-                  }`}
-                >
-                  {c === 'all' ? 'ALL' : cfg!.label.toUpperCase()}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        <div className="overflow-y-auto" style={{ maxHeight: '50vh' }}>
-          {filtered.length === 0 ? (
-            <p className="text-slate-600 text-sm font-mono text-center py-8">No exercises found</p>
-          ) : (
-            filtered.map(ex => {
-              const cfg = CATEGORY_CONFIG[ex.category];
-              return (
-                <button
-                  key={ex.id}
-                  type="button"
-                  onClick={() => { onSelect(ex); onClose(); }}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-surface-4 transition-colors text-left border-b border-surface-border/50"
-                >
-                  <span className={`text-base ${cfg.color}`}>{cfg.icon}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-200">{ex.name}</p>
-                    {ex.tags && (
-                      <p className="text-2xs font-mono text-slate-600 truncate">{ex.tags.join(' · ')}</p>
-                    )}
-                  </div>
-                  <span className={`text-2xs font-mono ${cfg.color} ${cfg.bg} px-2 py-0.5 rounded`}>
-                    {cfg.label}
-                  </span>
-                </button>
-              );
-            })
+
+          {/* Search / category filters — only in library mode */}
+          {!creating && (
+            <>
+              <input
+                autoFocus
+                type="text"
+                placeholder="Search exercises, tags..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="input mb-2"
+              />
+              <div className="flex gap-1">
+                {(['all', 'healing', 'forging', 'verse'] as const).map(c => {
+                  const cfg = c === 'all' ? null : CATEGORY_CONFIG[c];
+                  return (
+                    <button
+                      key={c}
+                      onClick={() => setCatFilter(c)}
+                      className={`px-2.5 py-1 rounded-full text-2xs font-mono transition-colors ${
+                        catFilter === c
+                          ? c === 'all' ? 'bg-slate-600 text-white' : `${cfg!.bg} ${cfg!.color}`
+                          : 'text-slate-500 hover:text-slate-300 bg-surface-3'
+                      }`}
+                    >
+                      {c === 'all' ? 'ALL' : cfg!.label.toUpperCase()}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
           )}
         </div>
+
+        {/* Library list */}
+        {!creating && (
+          <div className="overflow-y-auto" style={{ maxHeight: '50vh' }}>
+            {filtered.length === 0 ? (
+              <div className="py-8 text-center space-y-2">
+                <p className="text-slate-600 text-sm font-mono">No exercises found</p>
+                <button onClick={() => setCreating(true)} className="text-indigo-400 text-xs font-mono hover:underline">
+                  Create "{search}" as a new exercise →
+                </button>
+              </div>
+            ) : (
+              filtered.map(ex => {
+                const cfg = CATEGORY_CONFIG[ex.category];
+                return (
+                  <button
+                    key={ex.id}
+                    type="button"
+                    onClick={() => { onSelect(ex); onClose(); }}
+                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-surface-4 transition-colors text-left border-b border-surface-border/50"
+                  >
+                    <span className={`text-base ${cfg.color}`}>{cfg.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-200">{ex.name}</p>
+                      {ex.tags && (
+                        <p className="text-2xs font-mono text-slate-600 truncate">{ex.tags.join(' · ')}</p>
+                      )}
+                      {ex.is_custom && (
+                        <span className="text-2xs font-mono text-indigo-500">custom</span>
+                      )}
+                    </div>
+                    <span className={`text-2xs font-mono ${cfg.color} ${cfg.bg} px-2 py-0.5 rounded`}>
+                      {cfg.label}
+                    </span>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        )}
+
+        {/* Create form */}
+        {creating && (
+          <div className="overflow-y-auto p-4 space-y-3" style={{ maxHeight: '55vh' }}>
+            <div>
+              <label className="label block mb-1">Name <span className="text-red-400">*</span></label>
+              <input autoFocus type="text" value={newEx.name} onChange={e => setNewEx(p => ({ ...p, name: e.target.value }))} className="input" placeholder="e.g. Copenhagen Adductor" />
+            </div>
+            <div>
+              <label className="label block mb-2">Category</label>
+              <div className="grid grid-cols-3 gap-2">
+                {(['healing', 'forging', 'verse'] as SessionCategory[]).map(c => {
+                  const cfg = CATEGORY_CONFIG[c];
+                  return (
+                    <button key={c} type="button" onClick={() => setNewEx(p => ({ ...p, category: c }))}
+                      className={`flex items-center justify-center gap-1.5 py-2 rounded-lg border text-xs font-medium transition-all ${
+                        newEx.category === c ? `${cfg.bg} ${cfg.color} border-current/30` : 'bg-surface-3 text-slate-500 border-surface-border'
+                      }`}>
+                      <span>{cfg.icon}</span> {cfg.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div>
+              <label className="label block mb-1">Description</label>
+              <input type="text" value={newEx.description} onChange={e => setNewEx(p => ({ ...p, description: e.target.value }))} className="input" placeholder="Brief description" />
+            </div>
+            <div>
+              <label className="label block mb-1">Default Coaching Cues</label>
+              <textarea rows={2} value={newEx.coaching_cues} onChange={e => setNewEx(p => ({ ...p, coaching_cues: e.target.value }))} className="input resize-none" placeholder="Key technique points..." />
+            </div>
+            <div>
+              <label className="label block mb-1">Tags <span className="text-slate-600 font-sans normal-case text-xs">(comma-separated)</span></label>
+              <input type="text" value={newEx.tags} onChange={e => setNewEx(p => ({ ...p, tags: e.target.value }))} className="input" placeholder="e.g. adductor, unilateral, strength" />
+            </div>
+            {createErr && <p className="text-xs font-mono text-red-400">{createErr}</p>}
+            <button onClick={handleCreate} disabled={saving} className="btn-primary w-full justify-center">
+              {saving ? <span className="flex items-center gap-2"><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Saving...</span> : 'Create & Add to Session'}
+            </button>
+          </div>
+        )}
       </div>
     </>
   );
