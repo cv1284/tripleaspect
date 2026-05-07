@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 
-type Mode = 'sign_in' | 'sign_up' | 'forgot';
+type Mode = 'sign_in' | 'sign_up' | 'forgot' | 'resend';
 
 export default function LoginPage() {
   const [email,    setEmail]    = useState('');
@@ -15,11 +15,34 @@ export default function LoginPage() {
   const [sent,     setSent]     = useState(false);
   const router = useRouter();
 
+  // Parse error hash params that Supabase appends on link failures
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const hash = new URLSearchParams(window.location.hash.slice(1));
+    const code = hash.get('error_code');
+    if (code === 'otp_expired' || code === 'otp_disabled') {
+      setError('Your confirmation link has expired. Enter your email below to get a new one.');
+      setMode('resend');
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  }, []);
+
   function switchMode(m: Mode) {
     setMode(m);
     setError(null);
     setPassword('');
     setSent(false);
+  }
+
+  async function handleResend() {
+    if (!email) { setError('Enter your email address first.'); return; }
+    setLoading(true);
+    setError(null);
+    const supabase = createClient();
+    const { error: err } = await supabase.auth.resend({ type: 'signup', email });
+    if (err) { setError(err.message); setLoading(false); return; }
+    setSent(true);
+    setLoading(false);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -74,7 +97,7 @@ export default function LoginPage() {
           <p className="text-sm text-slate-500 font-mono">
             {mode === 'forgot'
               ? <>Password reset link sent to <span className="text-slate-300">{email}</span>.</>
-              : <>Confirmation link sent to <span className="text-slate-300">{email}</span>. Click the link then sign in.</>
+              : <>New confirmation link sent to <span className="text-slate-300">{email}</span>. Click it then sign in.</>
             }
           </p>
           <button
@@ -106,7 +129,7 @@ export default function LoginPage() {
         {/* Card */}
         <div className="card p-6 space-y-5">
 
-          {mode !== 'forgot' && (
+          {mode !== 'forgot' && mode !== 'resend' && (
             <div className="flex rounded-lg overflow-hidden border border-surface-border">
               {(['sign_in', 'sign_up'] as const).map(m => (
                 <button
@@ -132,6 +155,13 @@ export default function LoginPage() {
             </div>
           )}
 
+          {mode === 'resend' && (
+            <div>
+              <h2 className="text-sm font-semibold text-slate-200">Resend confirmation</h2>
+              <p className="text-xs font-mono text-slate-500 mt-0.5">We'll send a fresh confirmation link.</p>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="label block mb-1">Email</label>
@@ -146,7 +176,7 @@ export default function LoginPage() {
               />
             </div>
 
-            {mode !== 'forgot' && (
+            {mode !== 'forgot' && mode !== 'resend' && (
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="label">Password</label>
@@ -176,22 +206,38 @@ export default function LoginPage() {
               <p className="text-xs font-mono text-red-400">{error}</p>
             )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-primary w-full justify-center py-2.5"
-            >
-              {loading ? (
-                <span className="flex items-center gap-2">
-                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  {mode === 'sign_in' ? 'Signing in...' : mode === 'sign_up' ? 'Creating account...' : 'Sending...'}
-                </span>
-              ) : (
-                mode === 'sign_in' ? 'Sign In' : mode === 'sign_up' ? 'Create Account' : 'Send Reset Link'
-              )}
-            </button>
+            {mode === 'resend' ? (
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={loading}
+                className="btn-primary w-full justify-center py-2.5"
+              >
+                {loading ? (
+                  <span className="flex items-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Sending…
+                  </span>
+                ) : 'Resend Confirmation Email'}
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn-primary w-full justify-center py-2.5"
+              >
+                {loading ? (
+                  <span className="flex items-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    {mode === 'sign_in' ? 'Signing in...' : mode === 'sign_up' ? 'Creating account...' : 'Sending...'}
+                  </span>
+                ) : (
+                  mode === 'sign_in' ? 'Sign In' : mode === 'sign_up' ? 'Create Account' : 'Send Reset Link'
+                )}
+              </button>
+            )}
 
-            {mode === 'forgot' && (
+            {(mode === 'forgot' || mode === 'resend') && (
               <button
                 type="button"
                 onClick={() => switchMode('sign_in')}
