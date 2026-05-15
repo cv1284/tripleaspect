@@ -26,65 +26,68 @@ function MetricChip({ label, value }: { label: string; value: string | number })
 // ─── Metric Chips by Category ─────────────────────────────
 
 function ForgingChips({ metrics }: { metrics: Record<string, unknown> }) {
+  const m = metrics as Record<string, string | number | undefined>;
   return (
     <div className="flex gap-2 flex-wrap">
-      {metrics.sets && metrics.reps && (
-        <MetricChip label="vol" value={`${metrics.sets}×${metrics.reps}`} />
+      {!!(m.sets && m.reps) && (
+        <MetricChip label="vol" value={`${m.sets}×${m.reps}`} />
       )}
-      {metrics.weight_kg && (
-        <MetricChip label="kg" value={metrics.weight_kg as number} />
+      {!!m.weight_kg && (
+        <MetricChip label="kg" value={m.weight_kg as number} />
       )}
-      {metrics.rest_seconds && (
-        <MetricChip label="rest" value={`${metrics.rest_seconds}s`} />
+      {!!m.rest_seconds && (
+        <MetricChip label="rest" value={`${m.rest_seconds}s`} />
       )}
-      {metrics.tempo && (
-        <MetricChip label="tempo" value={metrics.tempo as string} />
+      {!!m.tempo && (
+        <MetricChip label="tempo" value={m.tempo as string} />
       )}
-      {metrics.rpe && (
-        <MetricChip label="RPE" value={metrics.rpe as number} />
+      {!!m.rpe && (
+        <MetricChip label="RPE" value={m.rpe as number} />
       )}
     </div>
   );
 }
 
 function HealingChips({ metrics }: { metrics: Record<string, unknown> }) {
+  const m = metrics as Record<string, string | number | undefined>;
   return (
     <div className="flex gap-2 flex-wrap">
-      {metrics.sets && metrics.reps && (
-        <MetricChip label="vol" value={`${metrics.sets}×${metrics.reps}`} />
+      {!!(m.sets && m.reps) && (
+        <MetricChip label="vol" value={`${m.sets}×${m.reps}`} />
       )}
-      {metrics.hold_seconds && (
-        <MetricChip label="hold" value={`${metrics.hold_seconds}s`} />
+      {!!m.hold_seconds && (
+        <MetricChip label="hold" value={`${m.hold_seconds}s`} />
       )}
-      {metrics.side && metrics.side !== 'bilateral' && (
-        <MetricChip label="side" value={metrics.side as string} />
+      {!!(m.side && m.side !== 'bilateral') && (
+        <MetricChip label="side" value={m.side as string} />
       )}
-      {metrics.rest_seconds && (
-        <MetricChip label="rest" value={`${metrics.rest_seconds}s`} />
+      {!!m.rest_seconds && (
+        <MetricChip label="rest" value={`${m.rest_seconds}s`} />
       )}
-      {metrics.frequency_per_day && (
-        <MetricChip label="freq" value={`${metrics.frequency_per_day}×/d`} />
+      {!!m.frequency_per_day && (
+        <MetricChip label="freq" value={`${m.frequency_per_day}×/d`} />
       )}
     </div>
   );
 }
 
 function VerseChips({ metrics }: { metrics: Record<string, unknown> }) {
+  const m = metrics as Record<string, string | number | undefined>;
   return (
     <div className="flex gap-2 flex-wrap">
-      {metrics.duration_minutes && (
-        <MetricChip label="time" value={`${metrics.duration_minutes}m`} />
+      {!!m.duration_minutes && (
+        <MetricChip label="time" value={`${m.duration_minutes}m`} />
       )}
-      {metrics.distance_km && (
-        <MetricChip label="dist" value={`${metrics.distance_km}km`} />
+      {!!m.distance_km && (
+        <MetricChip label="dist" value={`${m.distance_km}km`} />
       )}
-      {metrics.pace_per_km && (
-        <MetricChip label="pace" value={`${metrics.pace_per_km}/km`} />
+      {!!m.pace_per_km && (
+        <MetricChip label="pace" value={`${m.pace_per_km}/km`} />
       )}
-      {metrics.heart_rate_zone && (
-        <MetricChip label="zone" value={`Z${metrics.heart_rate_zone}`} />
+      {!!m.heart_rate_zone && (
+        <MetricChip label="zone" value={`Z${m.heart_rate_zone}`} />
       )}
-      {metrics.intervals && (
+      {!!(metrics.intervals) && (
         <MetricChip
           label="intervals"
           value={`${(metrics.intervals as { rounds: number }).rounds}×`}
@@ -166,11 +169,11 @@ export default function ExerciseCard({ item, index, category }: Props) {
             <MetricDisplay metrics={metrics} category={category} />
 
             {/* Interval detail for Verse */}
-            {category === 'verse' && metrics.intervals && (
+            {category === 'verse' && !!metrics.intervals && (
               <div className="mt-3 p-3 rounded-lg bg-surface-3 border border-surface-border text-xs font-mono text-slate-400">
-                Interval: {(metrics.intervals as { rounds: number; work_seconds: number; rest_seconds: number }).rounds}× |{' '}
-                {(metrics.intervals as { work_seconds: number }).work_seconds}s work /{' '}
-                {(metrics.intervals as { rest_seconds: number }).rest_seconds}s rest
+                {String((metrics.intervals as { rounds: number }).rounds)}× interval |{' '}
+                {String((metrics.intervals as { work_seconds: number }).work_seconds)}s work /{' '}
+                {String((metrics.intervals as { rest_seconds: number }).rest_seconds)}s rest
               </div>
             )}
           </div>
@@ -186,7 +189,7 @@ export default function ExerciseCard({ item, index, category }: Props) {
           )}
 
           {/* Notes from metrics */}
-          {metrics.notes && (
+          {!!metrics.notes && (
             <div className="px-4 pt-3">
               <p className="label mb-1.5">Notes</p>
               <p className="text-sm text-slate-400 font-mono leading-relaxed">{metrics.notes as string}</p>

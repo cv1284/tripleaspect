@@ -6,17 +6,18 @@ import { daysUntilRenewal, isExpiringSoon } from '@/lib/utils';
 
 interface Props {
   agreement: ClientAgreement;
+  ptEmail?:  string;
 }
 
 type BannerVariant = 'critical' | 'warning' | 'info';
 
 interface Banner {
-  id:       string;
-  variant:  BannerVariant;
-  icon:     string;
-  title:    string;
-  body:     string;
-  cta?:     { label: string; href?: string };
+  id:      string;
+  variant: BannerVariant;
+  icon:    string;
+  title:   string;
+  body:    string;
+  cta?:    { label: string; href?: string };
 }
 
 const VARIANT_STYLES: Record<BannerVariant, { bg: string; border: string; title: string; body: string; icon: string; cta: string }> = {
@@ -46,8 +47,11 @@ const VARIANT_STYLES: Record<BannerVariant, { bg: string; border: string; title:
   },
 };
 
-function buildBanners(agreement: ClientAgreement): Banner[] {
+function buildBanners(agreement: ClientAgreement, ptEmail?: string): Banner[] {
   const banners: Banner[] = [];
+  const contactCta = ptEmail
+    ? { label: 'Contact Coach', href: `mailto:${ptEmail}` }
+    : { label: 'Contact Coach' };
 
   // ── Onboarding document warnings ───────────────────────
   const missingDocs: string[] = [];
@@ -62,7 +66,7 @@ function buildBanners(agreement: ClientAgreement): Banner[] {
       icon:    '⚠',
       title:   'Action Required: Onboarding Incomplete',
       body:    `The following documents require your signature before training can begin: ${missingDocs.join(', ')}. Contact your coach to receive the documents.`,
-      cta:     { label: 'Contact Coach' },
+      cta:     contactCta,
     });
   }
 
@@ -79,7 +83,7 @@ function buildBanners(agreement: ClientAgreement): Banner[] {
       icon:    '⏱',
       title:   `Block Expiring${days === 0 ? ' Today' : ` in ${days} Day${days !== 1 ? 's' : ''}`}`,
       body:    'Your current fixed programme block is ending soon. Reach out to your coach to secure your next block and maintain training continuity.',
-      cta:     { label: 'Speak to Coach' },
+      cta:     { ...contactCta, label: 'Speak to Coach' },
     });
   }
 
@@ -91,6 +95,7 @@ function buildBanners(agreement: ClientAgreement): Banner[] {
       icon:    '⏸',
       title:   'Training Paused',
       body:    'Your programme is currently on hold. Contact your coach when you are ready to resume.',
+      cta:     { ...contactCta, label: 'Contact Coach' },
     });
   }
 
@@ -102,7 +107,7 @@ function buildBanners(agreement: ClientAgreement): Banner[] {
       icon:    '◉',
       title:   'Your Coach Needs to Speak With You',
       body:    'Your coach has flagged your account. Please get in touch at your earliest convenience.',
-      cta:     { label: 'Contact Coach' },
+      cta:     contactCta,
     });
   }
 
@@ -113,6 +118,8 @@ function buildBanners(agreement: ClientAgreement): Banner[] {
 
 function BannerCard({ banner }: { banner: Banner }) {
   const style = VARIANT_STYLES[banner.variant];
+  const ctaClass = `inline-flex items-center gap-1.5 mt-2.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${style.cta}`;
+
   return (
     <div className={`flex gap-3 p-4 rounded-xl border ${style.bg} ${style.border} animate-fade-in`}>
       <span className={`text-xl flex-shrink-0 leading-none mt-0.5 ${style.icon}`}>
@@ -122,11 +129,9 @@ function BannerCard({ banner }: { banner: Banner }) {
         <p className={`font-semibold text-sm ${style.title}`}>{banner.title}</p>
         <p className={`text-xs mt-0.5 leading-relaxed ${style.body}`}>{banner.body}</p>
         {banner.cta && (
-          <button
-            className={`inline-flex items-center gap-1.5 mt-2.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${style.cta}`}
-          >
-            {banner.cta.label} →
-          </button>
+          banner.cta.href
+            ? <a href={banner.cta.href} className={ctaClass}>{banner.cta.label} →</a>
+            : <button className={ctaClass}>{banner.cta.label} →</button>
         )}
       </div>
     </div>
@@ -135,8 +140,8 @@ function BannerCard({ banner }: { banner: Banner }) {
 
 // ─── Main Export ──────────────────────────────────────────
 
-export default function PortalBanners({ agreement }: Props) {
-  const banners = buildBanners(agreement);
+export default function PortalBanners({ agreement, ptEmail }: Props) {
+  const banners = buildBanners(agreement, ptEmail);
   if (banners.length === 0) return null;
 
   return (

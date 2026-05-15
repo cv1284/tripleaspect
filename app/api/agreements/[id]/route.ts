@@ -25,6 +25,27 @@ export async function GET(req: NextRequest, { params }: Params) {
   return NextResponse.json(data);
 }
 
+// DELETE — remove client agreement (PT only)
+export async function DELETE(req: NextRequest, { params }: Params) {
+  const { id } = await params;
+  const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { error } = await supabase
+    .from('client_agreements')
+    .delete()
+    .eq('id', id)
+    .eq('pt_id', user.id);   // PT can only delete their own agreements
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return new NextResponse(null, { status: 204 });
+}
+
 // PATCH — update agreement (PT only)
 export async function PATCH(req: NextRequest, { params }: Params) {
   const { id } = await params;
@@ -56,7 +77,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     .from('client_agreements')
     .update(payload)
     .eq('id', id)
-    .eq('pt_id', user.id)       // RLS + explicit PT ownership check
+    .eq('pt_id', user.id)
     .select()
     .single();
 
