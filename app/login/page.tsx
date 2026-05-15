@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 
-type Mode = 'sign_in' | 'sign_up' | 'forgot' | 'resend';
+type Mode = 'sign_in' | 'forgot' | 'resend';
 
 export default function LoginPage() {
   const [email,    setEmail]    = useState('');
@@ -62,28 +62,18 @@ export default function LoginPage() {
       return;
     }
 
-    if (mode === 'sign_in') {
-      const { error: err } = await supabase.auth.signInWithPassword({ email, password });
-      if (err) {
-        const msg = err.message.toLowerCase().includes('invalid')
-          ? 'Invalid email or password. If you just signed up, check your email for a confirmation link first.'
-          : err.message;
-        setError(msg);
-        setLoading(false);
-        return;
-      }
-      router.push('/');
-      router.refresh();
-    } else {
-      const { error: err } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { emailRedirectTo: `${location.origin}/auth/callback` },
-      });
-      if (err) { setError(err.message); setLoading(false); return; }
-      setSent(true);
+    // sign_in
+    const { error: err } = await supabase.auth.signInWithPassword({ email, password });
+    if (err) {
+      const msg = err.message.toLowerCase().includes('invalid')
+        ? 'Invalid email or password. If you just signed up, check your email for a confirmation link first.'
+        : err.message;
+      setError(msg);
       setLoading(false);
+      return;
     }
+    router.push('/');
+    router.refresh();
   }
 
   if (sent) {
@@ -96,7 +86,7 @@ export default function LoginPage() {
           </h1>
           <p className="text-sm text-slate-500 font-mono">
             {mode === 'forgot'
-              ? <>Password reset link sent to <span className="text-slate-300">{email}</span>.</>
+              ? <><span className="text-slate-300">{email}</span> — check your inbox for a password reset link.</>
               : <>New confirmation link sent to <span className="text-slate-300">{email}</span>. Click it then sign in.</>
             }
           </p>
@@ -129,36 +119,17 @@ export default function LoginPage() {
         {/* Card */}
         <div className="card p-6 space-y-5">
 
-          {mode !== 'forgot' && mode !== 'resend' && (
-            <div className="flex rounded-lg overflow-hidden border border-surface-border">
-              {(['sign_in', 'sign_up'] as const).map(m => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => switchMode(m)}
-                  className={`flex-1 py-2 text-sm font-medium transition-colors ${
-                    mode === m
-                      ? 'bg-surface-4 text-slate-200'
-                      : 'text-slate-500 hover:text-slate-300'
-                  }`}
-                >
-                  {m === 'sign_in' ? 'Sign In' : 'Sign Up'}
-                </button>
-              ))}
-            </div>
-          )}
-
           {mode === 'forgot' && (
             <div>
               <h2 className="text-sm font-semibold text-slate-200">Reset password</h2>
-              <p className="text-xs font-mono text-slate-500 mt-0.5">We'll email you a reset link.</p>
+              <p className="text-xs font-mono text-slate-500 mt-0.5">We&apos;ll email you a reset link.</p>
             </div>
           )}
 
           {mode === 'resend' && (
             <div>
               <h2 className="text-sm font-semibold text-slate-200">Resend confirmation</h2>
-              <p className="text-xs font-mono text-slate-500 mt-0.5">We'll send a fresh confirmation link.</p>
+              <p className="text-xs font-mono text-slate-500 mt-0.5">We&apos;ll send a fresh confirmation link.</p>
             </div>
           )}
 
@@ -176,19 +147,17 @@ export default function LoginPage() {
               />
             </div>
 
-            {mode !== 'forgot' && mode !== 'resend' && (
+            {mode === 'sign_in' && (
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="label">Password</label>
-                  {mode === 'sign_in' && (
-                    <button
-                      type="button"
-                      onClick={() => switchMode('forgot')}
-                      className="text-2xs font-mono text-slate-500 hover:text-slate-300 transition-colors"
-                    >
-                      Forgot password?
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => switchMode('forgot')}
+                    className="text-2xs font-mono text-slate-500 hover:text-slate-300 transition-colors"
+                  >
+                    Forgot password?
+                  </button>
                 </div>
                 <input
                   type="password"
@@ -229,10 +198,10 @@ export default function LoginPage() {
                 {loading ? (
                   <span className="flex items-center gap-2">
                     <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    {mode === 'sign_in' ? 'Signing in...' : mode === 'sign_up' ? 'Creating account...' : 'Sending...'}
+                    {mode === 'sign_in' ? 'Signing in...' : 'Sending...'}
                   </span>
                 ) : (
-                  mode === 'sign_in' ? 'Sign In' : mode === 'sign_up' ? 'Create Account' : 'Send Reset Link'
+                  mode === 'sign_in' ? 'Sign In' : 'Send Reset Link'
                 )}
               </button>
             )}
