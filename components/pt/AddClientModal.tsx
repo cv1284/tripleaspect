@@ -41,9 +41,10 @@ const MODEL_LABELS: Record<AgreementModel, { label: string; desc: string }> = {
 };
 
 export default function AddClientModal({ onClose, onAdded }: Props) {
-  const [form,    setForm]    = useState<FormState>(INITIAL);
-  const [saving,  setSaving]  = useState(false);
-  const [error,   setError]   = useState<string | null>(null);
+  const [form,        setForm]        = useState<FormState>(INITIAL);
+  const [saving,      setSaving]      = useState(false);
+  const [error,       setError]       = useState<string | null>(null);
+  const [showPricing, setShowPricing] = useState(false);
 
   function set<K extends keyof FormState>(key: K, val: FormState[K]) {
     setForm(f => ({ ...f, [key]: val }));
@@ -189,30 +190,52 @@ export default function AddClientModal({ onClose, onAdded }: Props) {
               )}
             </div>
 
-            {/* Pricing */}
-            <div>
-              <label className="label block mb-1">Monthly Price</label>
-              <div className="flex gap-2">
-                <select
-                  value={form.manual_currency}
-                  onChange={e => set('manual_currency', e.target.value)}
-                  className="input w-24 flex-shrink-0"
-                >
-                  <option value="GBP">GBP £</option>
-                  <option value="USD">USD $</option>
-                  <option value="EUR">EUR €</option>
-                  <option value="AUD">AUD $</option>
-                  <option value="CAD">CAD $</option>
-                </select>
-                <input
-                  type="number"
-                  min="0" step="0.01"
-                  placeholder="0.00"
-                  value={form.manual_price_numeric}
-                  onChange={e => set('manual_price_numeric', e.target.value)}
-                  className="input"
-                />
-              </div>
+            {/* Pricing — optional, collapsed by default */}
+            <div className="rounded-lg border border-surface-border overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setShowPricing(v => !v)}
+                className="w-full flex items-center justify-between px-3 py-2.5 text-left hover:bg-surface-3 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="label">Rate</span>
+                  <span className="text-2xs font-mono text-slate-600 normal-case tracking-normal">
+                    optional
+                  </span>
+                </div>
+                <span className="text-slate-600 text-xs">{showPricing ? '▲' : '▼'}</span>
+              </button>
+
+              {showPricing && (
+                <div className="px-3 pb-3 pt-1 space-y-2 border-t border-surface-border bg-surface-2/40">
+                  <p className="text-2xs font-mono text-slate-600 leading-relaxed">
+                    Stored privately for your reference only — shown in the client drawer and on your
+                    dashboard. Never visible to the client.
+                  </p>
+                  <div className="flex gap-2">
+                    <select
+                      value={form.manual_currency}
+                      onChange={e => set('manual_currency', e.target.value)}
+                      className="input w-24 flex-shrink-0"
+                    >
+                      <option value="GBP">GBP £</option>
+                      <option value="USD">USD $</option>
+                      <option value="EUR">EUR €</option>
+                      <option value="AUD">AUD $</option>
+                      <option value="CAD">CAD $</option>
+                    </select>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={form.manual_price_numeric}
+                      onChange={e => set('manual_price_numeric', e.target.value)}
+                      className="input"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Notice */}

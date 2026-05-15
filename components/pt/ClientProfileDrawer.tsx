@@ -8,15 +8,17 @@ import {
 } from '@/types/database';
 import { STATUS_CONFIG, getInitials, formatCurrency } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
+import GdprRemoveModal from '@/components/pt/GdprRemoveModal';
 
 // ─── Types ────────────────────────────────────────────────
 
 type Tab = 'overview' | 'onboarding' | 'billing' | 'sessions';
 
 interface Props {
-  client:   ClientRow | null;
-  onClose:  () => void;
-  onSaved:  (updated: ClientRow) => void;
+  client:    ClientRow | null;
+  onClose:   () => void;
+  onSaved:   (updated: ClientRow) => void;
+  onDeleted: (clientId: string) => void;
 }
 
 interface FormState {
@@ -148,16 +150,19 @@ const CATEGORY_COLORS: Record<string, string> = {
   healing: 'text-emerald-400', forging: 'text-amber-400', verse: 'text-indigo-400',
 };
 
-export default function ClientProfileDrawer({ client, onClose, onSaved }: Props) {
-  const [tab,            setTab]            = useState<Tab>('overview');
-  const [form,           setForm]           = useState<FormState | null>(null);
-  const [saving,         setSaving]         = useState(false);
-  const [error,          setError]          = useState<string | null>(null);
-  const [success,        setSuccess]        = useState(false);
-  const [sessions,       setSessions]       = useState<SessionRow[]>([]);
-  const [sessionsLoading, setSessionsLoading] = useState(false);
-  const [deletingId,     setDeletingId]     = useState<string | null>(null);
-  const [confirmDelete,  setConfirmDelete]  = useState<string | null>(null);
+export default function ClientProfileDrawer({ client, onClose, onSaved, onDeleted }: Props) {
+  const [tab,              setTab]              = useState<Tab>('overview');
+  const [form,             setForm]             = useState<FormState | null>(null);
+  const [saving,           setSaving]           = useState(false);
+  const [error,            setError]            = useState<string | null>(null);
+  const [success,          setSuccess]          = useState(false);
+  const [sessions,         setSessions]         = useState<SessionRow[]>([]);
+  const [sessionsLoading,  setSessionsLoading]  = useState(false);
+  const [deletingId,       setDeletingId]       = useState<string | null>(null);
+  const [confirmDelete,    setConfirmDelete]    = useState<string | null>(null);
+  const [confirmRemove,    setConfirmRemove]    = useState(false);
+  const [removing,         setRemoving]         = useState(false);
+  const [showGdprModal,    setShowGdprModal]    = useState(false);
 
   // Sync form when client changes
   useEffect(() => {
@@ -214,6 +219,23 @@ export default function ClientProfileDrawer({ client, onClose, onSaved }: Props)
   const set = useCallback(<K extends keyof FormState>(key: K, val: FormState[K]) => {
     setForm(f => f ? { ...f, [key]: val } : f);
   }, []);
+
+  async function handleRemoveClient() {
+    if (!client) return;
+    if (!confirmRemove) { setConfirmRemove(true); return; }
+    setRemoving(true);
+    setError(null);
+    const res = await fetch(`/api/agreements/${client.agreement.id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setError(body.error ?? 'Failed to remove client');
+      setRemoving(false);
+      setConfirmRemove(false);
+      return;
+    }
+    onDeleted(client.id);
+    onClose();
+  }
 
   async function handleSave() {
     if (!client || !form) return;
@@ -538,12 +560,14 @@ export default function ClientProfileDrawer({ client, onClose, onSaved }: Props)
           {/* ═══ BILLING TAB ═══ */}
           {tab === 'billing' && (
             <>
-              <div className="p-3 rounded-lg bg-surface-2 border border-surface-border text-xs font-mono text-slate-500">
-                Manual billing — record pricing and notes here. Stripe integration available in a future release.
+              <div className="p-3 rounded-lg bg-surface-2 border border-surface-border text-xs font-mono text-slate-500 leading-relaxed">
+                Stored privately for your reference only — never visible to the client.
+                Useful for tracking revenue and spotting renewal conversations early.
+                Stripe integration available in a future release.
               </div>
 
               <div>
-                <label className="label block mb-1">Monthly Price</label>
+                <label className="label block mb-1">Monthly Rate <span className="normal-case tracking-normal text-slate-600 font-sans font-normal">(optional)</span></label>
                 <div className="flex gap-2">
                   <select
                     value={form.manual_currency}
@@ -598,32 +622,77 @@ export default function ClientProfileDrawer({ client, onClose, onSaved }: Props)
         </div>
 
         {/* ── Footer ────────────────────────────────────── */}
-        <div className="flex-shrink-0 px-6 py-4 border-t border-surface-border flex items-center justify-between gap-3">
-          {error && (
-            <p className="text-xs font-mono text-red-400 flex-1 truncate">{error}</p>
-          )}
-          {success && (
-            <p className="text-xs font-mono text-emerald-400 flex-1">✓ Saved successfully</p>
-          )}
-          {!error && !success && <span className="flex-1" />}
+        <div className="flex-shrink-0 px-6 py-4 border-t border-surface-border space-y-3">
 
-          <div className="flex items-center gap-2">
-            <button onClick={onClose} className="btn-ghost">Cancel</button>
+          {/* Feedback */}
+          {(error || success) && (
+            <div>
+              {error   && <p className="text-xs font-mono text-red-400">{error}</p>}
+              {success && <p className="text-xs font-mono text-emerald-400">✓ Saved successfully</p>}
+            </div>
+          )}
+
+          {/* Save button */}
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="btn-primary w-full justify-center py-2.5"
+          >
+            {saving ? (
+              <span className="flex items-center gap-2">
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Saving…
+              </span>
+            ) : 'Save Changes'}
+          </button>
+
+          {/* Remove client (soft) */}
+          <div className="space-y-1.5">
             <button
-              onClick={handleSave}
-              disabled={saving}
-              className="btn-primary min-w-[80px]"
+              onClick={handleRemoveClient}
+              disabled={removing}
+              className={`w-full flex items-center justify-center gap-2 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                confirmRemove
+                  ? 'border-red-500/40 bg-red-500/10 text-red-400 hover:bg-red-500/15'
+                  : 'border-surface-border text-slate-500 hover:text-slate-300 hover:border-slate-500'
+              }`}
             >
-              {saving ? (
-                <span className="flex items-center gap-2">
-                  <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Saving
-                </span>
-              ) : 'Save Changes'}
+              {removing ? (
+                <span className="w-4 h-4 border-2 border-slate-500 border-t-slate-200 rounded-full animate-spin" />
+              ) : confirmRemove ? (
+                'Confirm — remove from client list?'
+              ) : (
+                'Remove from list'
+              )}
+            </button>
+            {confirmRemove && (
+              <button
+                type="button"
+                onClick={() => setConfirmRemove(false)}
+                className="w-full text-center text-2xs font-mono text-slate-600 hover:text-slate-400 transition-colors"
+              >
+                Cancel
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowGdprModal(true)}
+              className="w-full text-center text-2xs font-mono text-slate-600 hover:text-red-400 transition-colors"
+            >
+              GDPR: Request permanent data erasure →
             </button>
           </div>
+
         </div>
       </aside>
+
+      {showGdprModal && (
+        <GdprRemoveModal
+          client={client}
+          onClose={() => setShowGdprModal(false)}
+          onDeleted={onDeleted}
+        />
+      )}
     </>
   );
 }
