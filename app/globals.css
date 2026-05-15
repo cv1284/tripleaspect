@@ -25,6 +25,13 @@ html, body {
 ::-webkit-scrollbar-thumb    { background: #2a2a45; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #3a3a60; }
 
+/* Hide scrollbar utility (keep scroll behaviour) */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar { display: none; }
+
 /* ─── Focus ring ─────────────────────────────────────────── */
 :focus-visible {
   outline: 2px solid rgba(99,102,241,0.7);

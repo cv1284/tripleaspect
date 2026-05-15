@@ -48,7 +48,7 @@ export default async function SessionBuilderPage({ searchParams }: Props) {
   if (!clientId || clientId === 'undefined') redirect('/pt/clients');
 
   return (
-    <div className="min-h-screen bg-surface-0 py-8 px-4">
+    <div className="min-h-screen bg-surface-0 py-4 px-4 lg:py-8">
       <SessionBuilderClient
         ptId={user.id}
         clientId={clientId}

@@ -24,8 +24,13 @@ export default function ClientsPageClient({ clients: initial, ptId }: Props) {
     setClients(prev => [newClient, ...prev]);
   }
 
+  function handleDeleted(clientId: string) {
+    setClients(prev => prev.filter(c => c.id !== clientId));
+    setSelected(null);
+  }
+
   return (
-    <div className="min-h-screen bg-surface-0 p-6">
+    <div className="min-h-screen bg-surface-0 px-4 py-4 lg:p-6">
       <div className="max-w-6xl mx-auto">
         <ClientDirectory
           clients={clients}
@@ -38,6 +43,7 @@ export default function ClientsPageClient({ clients: initial, ptId }: Props) {
         client={selected}
         onClose={() => setSelected(null)}
         onSaved={handleSaved}
+        onDeleted={handleDeleted}
       />
 
       {showAddModal && (

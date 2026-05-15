@@ -116,21 +116,21 @@ function FilterBar({
   const statuses: (AgreementStatus | 'all')[] = ['all', 'active', 'attention', 'paused', 'inactive'];
 
   return (
-    <div className="flex items-center gap-3 flex-wrap">
+    <div className="flex flex-col gap-2">
       {/* Search */}
-      <div className="relative flex-1 min-w-[200px]">
+      <div className="relative">
         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 text-sm">⌕</span>
         <input
           type="text"
           placeholder="Search clients..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="input pl-8 h-9"
+          className="input pl-8 h-9 w-full"
         />
       </div>
 
-      {/* Status filter pills */}
-      <div className="flex items-center gap-1">
+      {/* Status filter pills — horizontally scrollable on mobile */}
+      <div className="flex items-center gap-1 overflow-x-auto pb-0.5 scrollbar-none">
         {statuses.map(s => {
           const active = statusFilter === s;
           const cfg    = s === 'all' ? null : STATUS_CONFIG[s];
@@ -230,8 +230,46 @@ export default function ClientDirectory({ clients, onSelectClient, onAddClient }
         statusFilter={statusFilter} setStatusFilter={setStatusFilter}
       />
 
-      {/* Table */}
-      <div className="card overflow-hidden">
+      {/* ── Mobile card list (hidden on lg+) ─────────── */}
+      <div className="lg:hidden space-y-2">
+        {filtered.length === 0 ? (
+          <div className="py-16 text-center text-slate-600 font-mono text-sm">
+            No clients match the current filters.
+          </div>
+        ) : (
+          filtered.map(client => {
+            const agreement = client.agreement;
+            const complete  = isOnboardingComplete(agreement);
+            const score     = [agreement.parq_signed, agreement.waiver_signed, agreement.consent_signed].filter(Boolean).length;
+            return (
+              <div
+                key={client.id}
+                onClick={() => onSelectClient(client)}
+                className="card px-4 py-3 flex items-center gap-3 cursor-pointer active:bg-surface-4 transition-colors"
+              >
+                <Avatar name={client.full_name} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-200 truncate">
+                    {client.full_name ?? 'Unnamed'}
+                  </p>
+                  <p className="text-2xs font-mono text-slate-600 truncate">{client.email}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <StatusBadge status={agreement.status} />
+                    <span className="text-2xs font-mono text-slate-600">
+                      {client.sessions_this_week} sess
+                    </span>
+                    <OnboardingIndicator complete={complete} score={score} />
+                  </div>
+                </div>
+                <span className="text-slate-600 text-sm flex-shrink-0">›</span>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* ── Desktop table (hidden below lg) ───────────── */}
+      <div className="hidden lg:block card overflow-hidden">
         {/* Table header */}
         <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_auto] gap-4 items-center px-4 py-2.5 border-b border-surface-border">
           <SortButton k="name"       label="Client" />
@@ -317,6 +355,7 @@ export default function ClientDirectory({ clients, onSelectClient, onAddClient }
           </div>
         )}
       </div>
+      {/* end desktop table */}
 
       {/* Attention summary strip */}
       {clients.some(c => c.agreement.status === 'attention') && (
