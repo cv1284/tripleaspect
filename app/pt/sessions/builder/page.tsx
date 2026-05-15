@@ -21,7 +21,7 @@ export default async function SessionBuilderPage({ searchParams }: Props) {
     .select('role')
     .eq('id', user.id)
     .single();
-  if (profile?.role !== 'pt') redirect('/portal');
+  if (profile?.role !== 'pt') redirect(`/portal/${user.id}`);
 
   // Load full exercise library
   const { data: exercises } = await supabase
@@ -43,9 +43,9 @@ export default async function SessionBuilderPage({ searchParams }: Props) {
     initialSession = session;
   }
 
-  // Resolve client
+  // Resolve client — guard against the literal string "undefined" from template URLs
   const clientId = params.clientId ?? initialSession?.client_id;
-  if (!clientId) redirect('/pt/clients');
+  if (!clientId || clientId === 'undefined') redirect('/pt/clients');
 
   return (
     <div className="min-h-screen bg-surface-0 py-8 px-4">

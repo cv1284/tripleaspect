@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Exercise, SessionItem, Session, SessionCategory,
   ForgingMetrics, HealingMetrics, VerseMetrics, PrescribedMetrics,
@@ -61,11 +61,12 @@ type DraftItem = {
 };
 
 interface Props {
-  ptId:          string;
-  clientId:      string;
-  exercises:     Exercise[];
+  ptId:           string;
+  clientId:       string;
+  exercises:      Exercise[];
   initialSession?: Session;
-  onSaved:       (session: Session) => void;
+  onSaved:        (session: Session) => void;
+  onCancel?:      () => void;
 }
 
 // ─── Exercise Picker Modal ────────────────────────────────
@@ -441,7 +442,7 @@ let draftIdCounter = 0;
 function newDraftId() { return `draft_${++draftIdCounter}`; }
 
 export default function SessionBuilder({
-  ptId, clientId, exercises, initialSession, onSaved,
+  ptId, clientId, exercises, initialSession, onSaved, onCancel,
 }: Props) {
   const [title,       setTitle]       = useState(initialSession?.title ?? '');
   const [category,    setCategory]    = useState<SessionCategory>(initialSession?.category ?? 'forging');
@@ -453,6 +454,27 @@ export default function SessionBuilder({
   const [error,       setError]       = useState<string | null>(null);
 
   const cfg = CATEGORY_CONFIG[category];
+
+  // ── Hydrate exercises when editing an existing session ──
+  useEffect(() => {
+    const existingItems = initialSession?.session_items;
+    if (!existingItems?.length) return;
+    setItems(
+      [...existingItems]
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map(item => ({
+          id:                   newDraftId(),
+          exercise:             item.exercise as Exercise,
+          prescribed_metrics:   Object.fromEntries(
+            Object.entries(item.prescribed_metrics ?? {}).map(([k, v]) => [k, String(v)])
+          ),
+          custom_coaching_cues: item.custom_coaching_cues ?? '',
+          custom_youtube_url:   item.custom_youtube_url   ?? '',
+          expanded:             false,
+        }))
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally runs once on mount only
 
   // ── Item helpers ────────────────────────────────────────
 
@@ -688,7 +710,9 @@ export default function SessionBuilder({
 
       {/* Save bar */}
       <div className="flex items-center justify-end gap-3 pt-2">
-        <button className="btn-ghost">Discard</button>
+        <button type="button" onClick={onCancel} className="btn-ghost">
+          Discard
+        </button>
         <button
           onClick={handleSave}
           disabled={saving}

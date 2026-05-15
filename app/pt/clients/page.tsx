@@ -20,7 +20,7 @@ export default async function ClientsPage() {
     .eq('id', user.id)
     .single();
 
-  if (profile?.role !== 'pt') redirect('/portal');
+  if (profile?.role !== 'pt') redirect(`/portal/${user.id}`);
 
   // Fetch all clients + agreements for this PT
   const { data: agreements, error } = await supabase
@@ -57,17 +57,26 @@ export default async function ClientsPage() {
     return acc;
   }, {});
 
-  // Build ClientRow array
-  const clients: ClientRow[] = (agreements ?? []).map(agreement => {
-    const client = agreement.client as ClientRow;
-    return {
-      ...client,
-      agreement,
-      sessions_this_week:  sessionCountMap[agreement.client_id] ?? 0,
-      days_until_renewal:  daysUntilRenewal(agreement.renewal_date),
-      onboarding_complete: isOnboardingComplete(agreement),
-    };
-  });
+  // Build ClientRow array — guard against null profile joins (invited but not yet set up)
+  const clients: ClientRow[] = (agreements ?? [])
+    .filter(agreement => agreement.client != null)
+    .map(agreement => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const p = agreement.client as any;
+      return {
+        id:          p.id          ?? agreement.client_id,
+        email:       p.email       ?? '',
+        full_name:   p.full_name   ?? null,
+        role:        p.role        ?? 'client',
+        avatar_url:  p.avatar_url  ?? null,
+        created_at:  p.created_at  ?? new Date().toISOString(),
+        updated_at:  p.updated_at  ?? new Date().toISOString(),
+        agreement,
+        sessions_this_week:  sessionCountMap[agreement.client_id] ?? 0,
+        days_until_renewal:  daysUntilRenewal(agreement.renewal_date),
+        onboarding_complete: isOnboardingComplete(agreement),
+      } as ClientRow;
+    });
 
   return <ClientsPageClient clients={clients} ptId={user.id} />;
 }

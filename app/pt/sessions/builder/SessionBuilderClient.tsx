@@ -20,6 +20,10 @@ export default function SessionBuilderClient({
     router.push(`/pt/clients?highlight=${session.client_id}`);
   }
 
+  function handleCancel() {
+    router.push('/pt/clients');
+  }
+
   return (
     <SessionBuilder
       ptId={ptId}
@@ -27,6 +31,7 @@ export default function SessionBuilderClient({
       exercises={exercises}
       initialSession={initialSession ?? undefined}
       onSaved={handleSaved}
+      onCancel={handleCancel}
     />
   );
 }

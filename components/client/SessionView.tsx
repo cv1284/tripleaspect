@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { Session, ClientAgreement, Profile } from '@/types/database';
 import { CATEGORY_CONFIG } from '@/lib/utils';
-import { createClient } from '@/lib/supabase/client';
 import PortalBanners from './PortalBanners';
 import ExerciseCard from './ExerciseCard';
 import { format, parseISO } from 'date-fns';
@@ -12,6 +11,7 @@ interface Props {
   session:   Session;
   agreement: ClientAgreement;
   client:    Profile;
+  ptEmail?:  string;
 }
 
 // ─── Header ───────────────────────────────────────────────
@@ -60,14 +60,14 @@ function CompleteButton({
     setLoading(true);
     setError(null);
 
-    const supabase = createClient();
-    const { error: err } = await supabase
-      .from('sessions')
-      .update({ completed_at: new Date().toISOString() })
-      .eq('id', sessionId);
-
+    const res = await fetch(`/api/sessions/${sessionId}/complete`, { method: 'POST' });
     setLoading(false);
-    if (err) { setError(err.message); return; }
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setError(body.error ?? 'Failed to record completion');
+      return;
+    }
     onComplete();
   }
 
@@ -158,7 +158,7 @@ function NoSessionToday({ clientName }: { clientName: string | null }) {
 
 // ─── Main Portal View ─────────────────────────────────────
 
-export default function SessionView({ session, agreement, client }: Props) {
+export default function SessionView({ session, agreement, client, ptEmail }: Props) {
   const [completed, setCompleted] = useState(!!session.completed_at);
   const items = session.session_items ?? [];
 
@@ -181,10 +181,10 @@ export default function SessionView({ session, agreement, client }: Props) {
       </header>
 
       {/* Content */}
-      <main className="max-w-lg mx-auto px-4 py-6 space-y-4">
+      <main className="max-w-lg mx-auto px-4 py-6 pb-24 space-y-4">
 
         {/* Priority banners */}
-        <PortalBanners agreement={agreement} />
+        <PortalBanners agreement={agreement} ptEmail={ptEmail} />
 
         {/* Session header */}
         <SessionHeader session={session} />
