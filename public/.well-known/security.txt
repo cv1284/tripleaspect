@@ -1,0 +1,5 @@
+Contact: mailto:cv1284@gmail.com
+Expires: 2027-05-17T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://www.tripleaspect.fit/.well-known/security.txt
+Policy: https://www.tripleaspect.fit/security-policy
