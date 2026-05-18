@@ -87,7 +87,7 @@ export default function ClientOnboarding({ agreement, firstName, ptEmail, ptName
                 {doc.signed ? (
                   <p className="text-xs font-mono text-emerald-500/70 mt-0.5">Signed ✓</p>
                 ) : doc.storageUrl ? (
-                  <div className="mt-2">
+                  <div className="mt-2 space-y-2">
                     <a
                       href={doc.storageUrl}
                       target="_blank"
@@ -96,13 +96,27 @@ export default function ClientOnboarding({ agreement, firstName, ptEmail, ptName
                     >
                       View &amp; Sign Document →
                     </a>
-                    <p className="text-2xs font-mono text-slate-600 mt-1.5">
-                      Opens in a new tab. Your coach will confirm once signed.
+                    <p className="text-2xs font-mono text-slate-600 leading-relaxed">
+                      Once signed, paste the link to your copy on your{' '}
+                      <a
+                        href={`/portal/${agreement.client_id}/account`}
+                        className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2"
+                      >
+                        Account page
+                      </a>
+                      {' '}— your coach will verify it from there.
                     </p>
                   </div>
                 ) : (
-                  <p className="text-xs font-mono text-amber-400/70 mt-0.5">
-                    Your coach will send this document shortly.
+                  <p className="text-xs font-mono text-slate-500 mt-1 leading-relaxed">
+                    Your coach will send this document over. Once signed, paste the link to your copy on your{' '}
+                    <a
+                      href={`/portal/${agreement.client_id}/account`}
+                      className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2"
+                    >
+                      Account page
+                    </a>
+                    {' '}and your coach will mark it complete.
                   </p>
                 )}
               </div>
