@@ -15,12 +15,39 @@ export default function LoginPage() {
   const [sent,     setSent]     = useState(false);
   const router = useRouter();
 
-  // Parse error params that Supabase appends on link failures (query string or hash)
+  // Parse hash / query params that Supabase appends after auth redirects
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const query = new URLSearchParams(window.location.search);
     const hash  = new URLSearchParams(window.location.hash.slice(1));
-    const code  = query.get('error_code') || hash.get('error_code');
+
+    // ── Implicit-flow session token (hash-based) ──────────
+    // Supabase falls back to this when the redirect_to URL isn't in the
+    // allowlist, dropping the user here instead of /auth/callback.
+    const accessToken  = hash.get('access_token');
+    const refreshToken = hash.get('refresh_token');
+    const tokenType    = hash.get('type');
+
+    if (accessToken && refreshToken) {
+      window.history.replaceState(null, '', window.location.pathname);
+      const supabase = createClient();
+      supabase.auth
+        .setSession({ access_token: accessToken, refresh_token: refreshToken })
+        .then(({ error }) => {
+          if (!error) {
+            // invite → set a password; anything else → go to dashboard
+            router.push(tokenType === 'invite' ? '/auth/reset' : '/');
+            router.refresh();
+          } else {
+            setError('Your link has expired. Enter your email below to get a new one.');
+            setMode('resend');
+          }
+        });
+      return;
+    }
+
+    // ── Error codes (expired / invalid links) ─────────────
+    const code = query.get('error_code') || hash.get('error_code');
     if (code === 'otp_expired' || code === 'otp_disabled' || code === 'access_denied') {
       const desc = query.get('error_description') || hash.get('error_description');
       setError(
@@ -31,7 +58,7 @@ export default function LoginPage() {
       setMode('resend');
       window.history.replaceState(null, '', window.location.pathname);
     }
-  }, []);
+  }, [router]);
 
   function switchMode(m: Mode) {
     setMode(m);

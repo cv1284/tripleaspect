@@ -53,23 +53,6 @@ function buildBanners(agreement: ClientAgreement, ptEmail?: string): Banner[] {
     ? { label: 'Contact Coach', href: `mailto:${ptEmail}` }
     : { label: 'Contact Coach' };
 
-  // ── Onboarding document warnings ───────────────────────
-  const missingDocs: string[] = [];
-  if (!agreement.parq_signed)    missingDocs.push('PAR-Q');
-  if (!agreement.waiver_signed)  missingDocs.push('Liability Waiver');
-  if (!agreement.consent_signed) missingDocs.push('Informed Consent');
-
-  if (missingDocs.length > 0) {
-    banners.push({
-      id:      'onboarding',
-      variant: 'critical',
-      icon:    '⚠',
-      title:   'Action Required: Onboarding Incomplete',
-      body:    `The following documents require your signature before training can begin: ${missingDocs.join(', ')}. Contact your coach to receive the documents.`,
-      cta:     contactCta,
-    });
-  }
-
   // ── Block expiry warning ────────────────────────────────
   if (
     agreement.agreement_model !== 'subscription' &&
