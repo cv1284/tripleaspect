@@ -15,9 +15,11 @@ export default async function PTLayout({ children }: { children: React.ReactNode
 
   if (profile?.role !== 'pt') redirect('/login');
 
+  const isOwner = user.email === process.env.ADMIN_EMAIL;
+
   return (
     <div className="flex h-screen overflow-hidden bg-surface-0">
-      <PTNav profile={{ full_name: profile.full_name, email: profile.email }} />
+      <PTNav profile={{ full_name: profile.full_name, email: profile.email }} isOwner={isOwner} />
       {/* pt-14 / pb-16 reserve space for mobile fixed header + bottom nav; lg resets to 0 */}
       <main className="flex-1 overflow-y-auto min-w-0 pt-14 lg:pt-0 pb-16 lg:pb-0">
         {children}

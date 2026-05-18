@@ -6,7 +6,8 @@ import { createClient } from '@/lib/supabase/client';
 import { getInitials } from '@/lib/utils';
 
 interface Props {
-  profile: { full_name: string | null; email: string };
+  profile:  { full_name: string | null; email: string };
+  isOwner?: boolean;
 }
 
 const NAV_ITEMS = [
@@ -14,7 +15,7 @@ const NAV_ITEMS = [
   { href: '/pt/account',  label: 'Account',  icon: '◉' },
 ] as const;
 
-export default function PTNav({ profile }: Props) {
+export default function PTNav({ profile, isOwner }: Props) {
   const pathname = usePathname();
   const router   = useRouter();
 
@@ -63,6 +64,22 @@ export default function PTNav({ profile }: Props) {
             );
           })}
         </div>
+
+        {isOwner && (
+          <div className="px-2 pb-2 border-b border-surface-border mb-2">
+            <Link
+              href="/admin"
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                pathname.startsWith('/admin')
+                  ? 'bg-surface-4 text-slate-100'
+                  : 'text-slate-500 hover:text-slate-300 hover:bg-surface-3'
+              }`}
+            >
+              <span className={`text-base ${pathname.startsWith('/admin') ? 'text-amber-400' : ''}`}>⊕</span>
+              Admin
+            </Link>
+          </div>
+        )}
 
         {/* User identity + sign out */}
         <div className="p-3 border-t border-surface-border space-y-1">
@@ -131,6 +148,23 @@ export default function PTNav({ profile }: Props) {
             </Link>
           );
         })}
+        {isOwner && (() => {
+          const active = pathname.startsWith('/admin');
+          return (
+            <Link
+              href="/admin"
+              className={`relative flex-1 flex flex-col items-center justify-center gap-1 py-3 transition-colors ${
+                active ? 'text-slate-100' : 'text-slate-600 hover:text-slate-400'
+              }`}
+            >
+              <span className={`text-lg leading-none ${active ? 'text-amber-400' : ''}`}>⊕</span>
+              <span className={`text-2xs font-mono ${active ? 'text-slate-300' : 'text-slate-600'}`}>Admin</span>
+              {active && (
+                <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 bg-amber-400 rounded-full" />
+              )}
+            </Link>
+          );
+        })()}
       </nav>
     </>
   );

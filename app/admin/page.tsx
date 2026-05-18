@@ -14,11 +14,11 @@ export default async function AdminPage() {
   const adminEmail = process.env.ADMIN_EMAIL;
   if (!adminEmail || user.email !== adminEmail) redirect('/');
 
-  // Use admin client to read all profiles (bypasses RLS)
   const admin = createAdminClient();
+
   const { data: profiles, error } = await admin
     .from('profiles')
-    .select('id, email, full_name, role, created_at')
+    .select('id, email, full_name, role, created_at, free_client_quota')
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -29,5 +29,21 @@ export default async function AdminPage() {
     );
   }
 
-  return <AdminClient profiles={profiles ?? []} currentUserId={user.id} />;
+  // Count agreements per PT for quota display
+  const ptIds = (profiles ?? []).filter(p => p.role === 'pt').map(p => p.id);
+  const { data: agreements } = ptIds.length
+    ? await admin.from('client_agreements').select('pt_id').in('pt_id', ptIds)
+    : { data: [] };
+
+  const clientCountByPt: Record<string, number> = {};
+  for (const a of agreements ?? []) {
+    clientCountByPt[a.pt_id] = (clientCountByPt[a.pt_id] ?? 0) + 1;
+  }
+
+  const enriched = (profiles ?? []).map(p => ({
+    ...p,
+    client_count: clientCountByPt[p.id] ?? 0,
+  }));
+
+  return <AdminClient profiles={enriched} currentUserId={user.id} />;
 }

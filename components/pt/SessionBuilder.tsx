@@ -478,11 +478,17 @@ export default function SessionBuilder({
 
   // ── Item helpers ────────────────────────────────────────
 
+  const DEFAULT_METRICS: Record<SessionCategory, Record<string, string>> = {
+    forging: { sets: '3', reps: '10' },
+    healing: { sets: '3', hold_seconds: '30', side: 'bilateral' },
+    verse:   { duration_minutes: '30' },
+  };
+
   function addExercise(ex: Exercise) {
     setItems(prev => [...prev, {
       id:                   newDraftId(),
       exercise:             ex,
-      prescribed_metrics:   {},
+      prescribed_metrics:   { ...DEFAULT_METRICS[category] },
       custom_coaching_cues: '',
       custom_youtube_url:   '',
       expanded:             true,

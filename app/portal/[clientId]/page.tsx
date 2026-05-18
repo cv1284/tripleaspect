@@ -1,4 +1,5 @@
-import { createClient } from '@/lib/supabase/server';
+import { createClient }      from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { redirect, notFound } from 'next/navigation';
 import { Session, ClientAgreement, Profile, SessionCategory } from '@/types/database';
 import SessionView from '@/components/client/SessionView';
@@ -30,7 +31,23 @@ export default async function ClientPortalPage({ params }: Props) {
 
   if (!isOwnPortal && !isPT) redirect('/login');
 
-  const { data: client } = await supabase
+  // Use admin client to fetch the client profile — the pt_reads_clients RLS policy
+  // can silently block profile reads for invited-but-unconfirmed clients (same quirk
+  // handled by the admin fallback in the PT clients page).
+  // PTs are gated by the agreement check below; clients can only see their own portal.
+  const admin = createAdminClient();
+
+  if (isPT && !isOwnPortal) {
+    const { data: agreement } = await supabase
+      .from('client_agreements')
+      .select('id')
+      .eq('pt_id', user.id)
+      .eq('client_id', clientId)
+      .single();
+    if (!agreement) redirect('/login');
+  }
+
+  const { data: client } = await admin
     .from('profiles')
     .select('*')
     .eq('id', clientId)

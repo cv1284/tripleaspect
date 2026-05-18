@@ -76,7 +76,7 @@ export default function ClientAccountClient({ profile, clientId, agreement }: Pr
     setResetMsg(null);
     const supabase = createClient();
     const { error } = await supabase.auth.resetPasswordForEmail(profile.email, {
-      redirectTo: `${location.origin}/auth/reset`,
+      redirectTo: `${location.origin}/auth/callback?next=/auth/reset`,
     });
     setSendingReset(false);
     setResetMsg(error

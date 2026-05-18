@@ -7,9 +7,10 @@ interface Props {
   userId:      string;
   initialName: string;
   email:       string;
+  isAdmin:     boolean;
 }
 
-export default function AccountClient({ userId, initialName, email }: Props) {
+export default function AccountClient({ userId, initialName, email, isAdmin }: Props) {
   const [name,         setName]         = useState(initialName);
   const [saving,       setSaving]       = useState(false);
   const [nameSaved,    setNameSaved]    = useState(false);
@@ -89,6 +90,20 @@ export default function AccountClient({ userId, initialName, email }: Props) {
           ) : 'Save Name'}
         </button>
       </div>
+
+      {/* Admin panel link */}
+      {isAdmin && (
+        <a
+          href="/admin"
+          className="card p-5 flex items-center justify-between group hover:border-indigo-500/30 transition-colors"
+        >
+          <div>
+            <p className="text-sm font-semibold text-slate-200 mb-0.5">Admin Panel</p>
+            <p className="text-xs font-mono text-slate-500">Manage coaches, accounts &amp; roles</p>
+          </div>
+          <span className="text-slate-600 group-hover:text-indigo-400 transition-colors text-lg">→</span>
+        </a>
+      )}
 
       {/* Password */}
       <div className="card p-5 space-y-3">

@@ -138,6 +138,10 @@ export interface ClientAgreement {
   stripe_customer_id:     string | null;
   stripe_subscription_id: string | null;
 
+  // Deferred deletion scheduling
+  deletion_scheduled_at:  string | null;
+  deletion_reason:        string | null;
+
   created_at: string;
   updated_at: string;
 

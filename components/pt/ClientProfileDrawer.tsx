@@ -6,7 +6,7 @@ import {
   ClientRow, AgreementStatus, AgreementModel,
   OnboardingDocKey, getOnboardingDocs,
 } from '@/types/database';
-import { STATUS_CONFIG, getInitials, formatCurrency } from '@/lib/utils';
+import { STATUS_CONFIG, getInitials, formatCurrency, deletionDaysRemaining, isDeletionOverdue } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
 import GdprRemoveModal from '@/components/pt/GdprRemoveModal';
 
@@ -132,6 +132,35 @@ function CopyPortalLink({ clientId }: { clientId: string }) {
   );
 }
 
+// ─── Resend Invite ────────────────────────────────────────
+function ResendInvite({ clientId }: { clientId: string }) {
+  const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  async function handleResend() {
+    setState('sending');
+    const res = await fetch(`/api/clients/${clientId}/resend-invite`, { method: 'POST' });
+    setState(res.ok ? 'sent' : 'error');
+    if (res.ok) setTimeout(() => setState('idle'), 3000);
+  }
+  return (
+    <button
+      onClick={handleResend}
+      disabled={state === 'sending' || state === 'sent'}
+      className={`btn-ghost py-1.5 text-xs px-3 transition-colors ${
+        state === 'sent'  ? 'text-emerald-400' :
+        state === 'error' ? 'text-red-400' : ''
+      }`}
+      title="Resend invite email"
+    >
+      {state === 'sending' ? (
+        <span className="flex items-center gap-1.5">
+          <span className="w-3 h-3 border-2 border-slate-500 border-t-slate-200 rounded-full animate-spin" />
+          Sending…
+        </span>
+      ) : state === 'sent' ? '✓ Invite sent' : state === 'error' ? '✕ Failed' : '↩ Resend invite'}
+    </button>
+  );
+}
+
 // ─── Main Drawer ──────────────────────────────────────────
 
 // ─── Session row type (minimal fetch) ─────────────────────
@@ -163,6 +192,9 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
   const [confirmRemove,    setConfirmRemove]    = useState(false);
   const [removing,         setRemoving]         = useState(false);
   const [showGdprModal,    setShowGdprModal]    = useState(false);
+  const [confirmSchedule,  setConfirmSchedule]  = useState(false);
+  const [scheduling,       setScheduling]       = useState(false);
+  const [scheduleReason,   setScheduleReason]   = useState('');
 
   // Sync form when client changes
   useEffect(() => {
@@ -237,6 +269,49 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
     onClose();
   }
 
+  async function handleScheduleDeletion() {
+    if (!client) return;
+    if (!confirmSchedule) { setConfirmSchedule(true); return; }
+    setScheduling(true);
+    setError(null);
+    const deletionDate = new Date();
+    deletionDate.setDate(deletionDate.getDate() + 14);
+    const res = await fetch(`/api/agreements/${client.agreement.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        deletion_scheduled_at: deletionDate.toISOString(),
+        deletion_reason: scheduleReason || 'Scheduled by PT',
+      }),
+    });
+    setScheduling(false);
+    setConfirmSchedule(false);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setError(body.error ?? 'Failed to schedule deletion');
+      return;
+    }
+    const updated = await res.json();
+    onSaved({ ...client, agreement: { ...client.agreement, ...updated } });
+  }
+
+  async function handleCancelDeletion() {
+    if (!client) return;
+    setError(null);
+    const res = await fetch(`/api/agreements/${client.agreement.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ deletion_scheduled_at: null, deletion_reason: null }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setError(body.error ?? 'Failed to cancel deletion');
+      return;
+    }
+    const updated = await res.json();
+    onSaved({ ...client, agreement: { ...client.agreement, ...updated } });
+  }
+
   async function handleSave() {
     if (!client || !form) return;
     setSaving(true);
@@ -305,6 +380,7 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
             </h2>
             <p className="text-2xs font-mono text-slate-500 truncate">{client.email}</p>
           </div>
+          <ResendInvite clientId={client?.id ?? ''} />
           <CopyPortalLink clientId={client?.id ?? ''} />
           <Link
             href={`/pt/sessions/builder?clientId=${client?.id}`}
@@ -674,6 +750,65 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
                 Cancel
               </button>
             )}
+
+            {/* Deletion scheduling */}
+            {client.agreement.deletion_scheduled_at ? (
+              <div className={`px-3 py-2.5 rounded-lg border text-xs font-mono space-y-1.5 ${
+                isDeletionOverdue(client.agreement.deletion_scheduled_at)
+                  ? 'bg-red-500/10 border-red-500/30'
+                  : 'bg-amber-500/8 border-amber-500/20'
+              }`}>
+                <p className={isDeletionOverdue(client.agreement.deletion_scheduled_at) ? 'text-red-400' : 'text-amber-400'}>
+                  {isDeletionOverdue(client.agreement.deletion_scheduled_at)
+                    ? '⚠ Deletion overdue — complete via GDPR erasure below'
+                    : `⏰ Deletion scheduled · ${deletionDaysRemaining(client.agreement.deletion_scheduled_at)} day(s) remaining`}
+                </p>
+                {client.agreement.deletion_reason && (
+                  <p className="text-slate-500">{client.agreement.deletion_reason}</p>
+                )}
+                <button
+                  type="button"
+                  onClick={handleCancelDeletion}
+                  className="text-slate-500 hover:text-slate-300 transition-colors"
+                >
+                  Cancel scheduled deletion →
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                {confirmSchedule && (
+                  <input
+                    type="text"
+                    placeholder="Reason (optional, e.g. client requested)"
+                    value={scheduleReason}
+                    onChange={e => setScheduleReason(e.target.value)}
+                    className="input text-xs"
+                  />
+                )}
+                <button
+                  type="button"
+                  onClick={handleScheduleDeletion}
+                  disabled={scheduling}
+                  className={`w-full text-center text-2xs font-mono transition-colors ${
+                    confirmSchedule
+                      ? 'py-2 rounded-lg border border-amber-500/30 bg-amber-500/8 text-amber-400 hover:bg-amber-500/12'
+                      : 'text-slate-600 hover:text-amber-400'
+                  }`}
+                >
+                  {scheduling ? '…' : confirmSchedule ? 'Confirm — schedule deletion in 14 days?' : 'Schedule for deletion (14 days) →'}
+                </button>
+                {confirmSchedule && (
+                  <button
+                    type="button"
+                    onClick={() => { setConfirmSchedule(false); setScheduleReason(''); }}
+                    className="w-full text-center text-2xs font-mono text-slate-600 hover:text-slate-400 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            )}
+
             <button
               type="button"
               onClick={() => setShowGdprModal(true)}

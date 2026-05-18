@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { data: ptProfile } = await supabase
-    .from('profiles').select('role').eq('id', user.id).single();
+    .from('profiles').select('role, free_client_quota').eq('id', user.id).single();
   if (ptProfile?.role !== 'pt') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const {
@@ -24,6 +24,20 @@ export async function POST(req: NextRequest) {
   const admin    = createAdminClient();
   const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
   let   clientId = '';
+
+  // Enforce free client quota
+  const { count: clientCount } = await admin
+    .from('client_agreements')
+    .select('id', { count: 'exact', head: true })
+    .eq('pt_id', user.id);
+
+  const quota = ptProfile?.free_client_quota ?? 3;
+  if (typeof clientCount === 'number' && clientCount >= quota) {
+    return NextResponse.json(
+      { error: `You've reached your limit of ${quota} client${quota !== 1 ? 's' : ''}. Contact the platform owner to increase your quota.` },
+      { status: 403 },
+    );
+  }
 
   // Invite the user — creates auth row + sends invite email
   const { data: invite, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(email, {

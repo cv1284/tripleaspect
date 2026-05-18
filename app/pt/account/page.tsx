@@ -15,6 +15,8 @@ export default async function AccountPage() {
     .eq('id', user.id)
     .single();
 
+  const isAdmin = !!process.env.ADMIN_EMAIL && user.email === process.env.ADMIN_EMAIL;
+
   return (
     <div className="p-6 max-w-lg">
       <h1 className="text-xl font-semibold text-slate-100 mb-1">Account</h1>
@@ -23,6 +25,7 @@ export default async function AccountPage() {
         userId={user.id}
         initialName={profile?.full_name ?? ''}
         email={profile?.email ?? user.email ?? ''}
+        isAdmin={isAdmin}
       />
     </div>
   );

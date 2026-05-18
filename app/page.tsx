@@ -2,7 +2,23 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect }     from 'next/navigation';
 import Link             from 'next/link';
 
-export default async function RootPage() {
+export default async function RootPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string>>;
+}) {
+  const params = await searchParams;
+
+  // Supabase appends error params here when a redirect URL isn't whitelisted.
+  // Forward them to /login so the user sees a proper message.
+  if (params.error_code || params.error) {
+    const qs = new URLSearchParams({
+      ...(params.error_code        && { error_code:        params.error_code }),
+      ...(params.error_description && { error_description: params.error_description }),
+    }).toString();
+    redirect(`/login${qs ? `?${qs}` : ''}`);
+  }
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 

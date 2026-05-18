@@ -86,7 +86,7 @@ export default async function HistoryPage({ params }: Props) {
       session_items ( id )
     `)
     .eq('client_id', clientId)
-    .lt('scheduled_date', today)
+    .lte('scheduled_date', today)
     .order('scheduled_date', { ascending: false })
     .limit(100);
 

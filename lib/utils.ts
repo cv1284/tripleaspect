@@ -8,6 +8,16 @@ export function daysUntilRenewal(renewalDate: string | null): number | null {
   return differenceInDays(parseISO(renewalDate), new Date());
 }
 
+export function deletionDaysRemaining(scheduledAt: string | null): number | null {
+  if (!scheduledAt) return null;
+  return differenceInDays(parseISO(scheduledAt), new Date());
+}
+
+export function isDeletionOverdue(scheduledAt: string | null): boolean {
+  const days = deletionDaysRemaining(scheduledAt);
+  return days !== null && days <= 0;
+}
+
 export function isExpiringSoon(renewalDate: string | null, thresholdDays = 7): boolean {
   const days = daysUntilRenewal(renewalDate);
   return days !== null && days >= 0 && days <= thresholdDays;

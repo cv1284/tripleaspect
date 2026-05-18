@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { redirect } from 'next/navigation';
 import { isOnboardingComplete } from '@/types/database';
 import { daysUntilRenewal } from '@/lib/utils';
@@ -57,12 +58,29 @@ export default async function ClientsPage() {
     return acc;
   }, {});
 
+  // If any profiles came back null (RLS policy quirk in Supabase), fetch them via admin
+  const nullClientIds = (agreements ?? [])
+    .filter(a => a.client == null)
+    .map(a => a.client_id);
+
+  let adminProfiles: Record<string, Record<string, unknown>> = {};
+  if (nullClientIds.length > 0) {
+    const admin = createAdminClient();
+    const { data: fallbackProfiles } = await admin
+      .from('profiles')
+      .select('id, email, full_name, role, avatar_url, created_at, updated_at')
+      .in('id', nullClientIds);
+    for (const p of fallbackProfiles ?? []) {
+      adminProfiles[p.id] = p as Record<string, unknown>;
+    }
+  }
+
   // Build ClientRow array — guard against null profile joins (invited but not yet set up)
   const clients: ClientRow[] = (agreements ?? [])
-    .filter(agreement => agreement.client != null)
+    .filter(agreement => agreement.client != null || adminProfiles[agreement.client_id] != null)
     .map(agreement => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const p = agreement.client as any;
+      const p = (agreement.client ?? adminProfiles[agreement.client_id]) as any;
       return {
         id:          p.id          ?? agreement.client_id,
         email:       p.email       ?? '',

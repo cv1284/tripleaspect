@@ -63,6 +63,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     'waiver_signed', 'waiver_storage_url',
     'consent_signed', 'consent_storage_url',
     'manual_price_numeric', 'manual_currency', 'billing_notes',
+    'deletion_scheduled_at', 'deletion_reason',
   ] as const;
 
   const payload = Object.fromEntries(

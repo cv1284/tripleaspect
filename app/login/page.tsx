@@ -15,13 +15,19 @@ export default function LoginPage() {
   const [sent,     setSent]     = useState(false);
   const router = useRouter();
 
-  // Parse error hash params that Supabase appends on link failures
+  // Parse error params that Supabase appends on link failures (query string or hash)
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const hash = new URLSearchParams(window.location.hash.slice(1));
-    const code = hash.get('error_code');
-    if (code === 'otp_expired' || code === 'otp_disabled') {
-      setError('Your confirmation link has expired. Enter your email below to get a new one.');
+    const query = new URLSearchParams(window.location.search);
+    const hash  = new URLSearchParams(window.location.hash.slice(1));
+    const code  = query.get('error_code') || hash.get('error_code');
+    if (code === 'otp_expired' || code === 'otp_disabled' || code === 'access_denied') {
+      const desc = query.get('error_description') || hash.get('error_description');
+      setError(
+        desc?.toLowerCase().includes('expired') || code === 'otp_expired'
+          ? 'Your link has expired. Enter your email below to get a new one.'
+          : desc ?? 'Your link is invalid. Enter your email below to get a new one.'
+      );
       setMode('resend');
       window.history.replaceState(null, '', window.location.pathname);
     }
@@ -38,9 +44,17 @@ export default function LoginPage() {
     if (!email) { setError('Enter your email address first.'); return; }
     setLoading(true);
     setError(null);
-    const supabase = createClient();
-    const { error: err } = await supabase.auth.resend({ type: 'signup', email });
-    if (err) { setError(err.message); setLoading(false); return; }
+    const res = await fetch('/api/auth/resend-invite', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ email }),
+    });
+    if (!res.ok) {
+      const { error: msg } = await res.json();
+      setError(msg ?? 'Failed to resend. Please try again.');
+      setLoading(false);
+      return;
+    }
     setSent(true);
     setLoading(false);
   }
@@ -54,7 +68,7 @@ export default function LoginPage() {
 
     if (mode === 'forgot') {
       const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${location.origin}/auth/reset`,
+        redirectTo: `${location.origin}/auth/callback?next=/auth/reset`,
       });
       if (err) { setError(err.message); setLoading(false); return; }
       setSent(true);
@@ -217,6 +231,15 @@ export default function LoginPage() {
             )}
           </form>
         </div>
+
+        {mode === 'sign_in' && (
+          <p className="text-center text-xs font-mono text-slate-600">
+            PT joining the platform?{' '}
+            <a href="/signup" className="text-indigo-400 hover:text-indigo-300 underline underline-offset-2">
+              Create an account
+            </a>
+          </p>
+        )}
 
         <p className="text-center text-2xs font-mono text-slate-700">
           Precision coaching · Healing · Forging · Verse

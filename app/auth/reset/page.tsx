@@ -12,13 +12,20 @@ export default function ResetPasswordPage() {
   const [ready,     setReady]     = useState(false);
   const router = useRouter();
 
-  // Supabase recovery links land here with a hash fragment; the client SDK
-  // picks up the session from the URL automatically on mount.
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.onAuthStateChange((event) => {
+
+    // PKCE flow: session is already established by /auth/callback before we land here
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setReady(true);
+    });
+
+    // Hash flow fallback (legacy email links)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') setReady(true);
     });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -31,7 +38,7 @@ export default function ResetPasswordPage() {
     const { error: err } = await supabase.auth.updateUser({ password });
     if (err) { setError(err.message); setLoading(false); return; }
 
-    router.push('/');
+    router.push('/login');
   }
 
   return (

@@ -8,6 +8,7 @@ import { ClientRow, AgreementStatus, AgreementModel, SessionCategory } from '@/t
 import {
   STATUS_CONFIG, CATEGORY_CONFIG,
   daysUntilRenewal, isOnboardingComplete, getInitials, formatCurrency,
+  isDeletionOverdue, deletionDaysRemaining,
 } from '@/lib/utils';
 
 // ─── Types ────────────────────────────────────────────────
@@ -59,6 +60,21 @@ function OnboardingIndicator({ complete, score }: { complete: boolean; score: nu
     <span className="inline-flex items-center gap-1 text-2xs font-mono text-amber-400">
       <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
       {score}/3
+    </span>
+  );
+}
+
+function DeletionBadge({ scheduledAt }: { scheduledAt: string | null }) {
+  if (!scheduledAt) return null;
+  const overdue = isDeletionOverdue(scheduledAt);
+  const days    = deletionDaysRemaining(scheduledAt);
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-2xs font-mono border ${
+      overdue
+        ? 'bg-red-500/15 text-red-400 border-red-500/30 animate-pulse'
+        : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+    }`}>
+      {overdue ? '⚠ DELETE NOW' : `⏰ del. ${days}d`}
     </span>
   );
 }
@@ -224,6 +240,21 @@ export default function ClientDirectory({ clients, onSelectClient, onAddClient }
         </button>
       </div>
 
+      {/* Deletion overdue alert */}
+      {clients.some(c => isDeletionOverdue(c.agreement.deletion_scheduled_at)) && (
+        <div className="flex items-start gap-3 px-4 py-3 rounded-lg bg-red-500/8 border border-red-500/25 text-sm font-mono">
+          <span className="text-red-400 text-base flex-shrink-0 mt-0.5">⚠</span>
+          <div>
+            <p className="text-red-300 font-semibold mb-0.5">
+              {clients.filter(c => isDeletionOverdue(c.agreement.deletion_scheduled_at)).length} account(s) past deletion date
+            </p>
+            <p className="text-slate-500 text-xs">
+              Open each flagged client and use "GDPR: Request permanent data erasure" to complete the deletion.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
       <FilterBar
         search={search} setSearch={setSearch}
@@ -253,12 +284,13 @@ export default function ClientDirectory({ clients, onSelectClient, onAddClient }
                     {client.full_name ?? 'Unnamed'}
                   </p>
                   <p className="text-2xs font-mono text-slate-600 truncate">{client.email}</p>
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
                     <StatusBadge status={agreement.status} />
                     <span className="text-2xs font-mono text-slate-600">
                       {client.sessions_this_week} sess
                     </span>
                     <OnboardingIndicator complete={complete} score={score} />
+                    <DeletionBadge scheduledAt={agreement.deletion_scheduled_at} />
                   </div>
                 </div>
                 <span className="text-slate-600 text-sm flex-shrink-0">›</span>
@@ -304,9 +336,12 @@ export default function ClientDirectory({ clients, onSelectClient, onAddClient }
                   <div className="flex items-center gap-3 min-w-0">
                     <Avatar name={client.full_name} />
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-slate-200 truncate">
-                        {client.full_name ?? 'Unnamed'}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-slate-200 truncate">
+                          {client.full_name ?? 'Unnamed'}
+                        </p>
+                        <DeletionBadge scheduledAt={agreement.deletion_scheduled_at} />
+                      </div>
                       <p className="text-2xs font-mono text-slate-600 truncate">{client.email}</p>
                     </div>
                   </div>
