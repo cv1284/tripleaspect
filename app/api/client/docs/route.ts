@@ -25,22 +25,23 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'No valid fields' }, { status: 400 });
   }
 
-  // Find the client's own agreement
-  const { data: agreement } = await supabase
+  // Use admin client for all DB ops — clients have SELECT-only RLS on client_agreements
+  // and the single-object accept header conflicts with RLS filters.
+  // Auth is validated above via JWT; ownership is enforced by filtering on user.id.
+  const admin = createAdminClient();
+
+  const { data: agreements } = await admin
     .from('client_agreements')
     .select('id')
     .eq('client_id', user.id)
     .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(1);
 
+  const agreement = agreements?.[0] ?? null;
   if (!agreement) {
     return NextResponse.json({ error: 'No agreement found' }, { status: 404 });
   }
 
-  // Admin client bypasses RLS — clients only have SELECT on client_agreements.
-  // Ownership verified above; only storage URL fields are allowed in patch.
-  const admin = createAdminClient();
   const { error } = await admin
     .from('client_agreements')
     .update(patch)
