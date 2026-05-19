@@ -17,7 +17,7 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
     .select('id')
     .eq('id', id)
     .eq('pt_id', user.id)
-    .single();
+    .maybeSingle();
 
   if (!session) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 

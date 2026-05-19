@@ -11,7 +11,7 @@ export default async function AccountPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name, email')
+    .select('full_name, email, avatar_url, logo_url')
     .eq('id', user.id)
     .single();
 
@@ -26,6 +26,8 @@ export default async function AccountPage() {
         initialName={profile?.full_name ?? ''}
         email={profile?.email ?? user.email ?? ''}
         isAdmin={isAdmin}
+        avatarUrl={profile?.avatar_url ?? null}
+        logoUrl={profile?.logo_url ?? null}
       />
     </div>
   );

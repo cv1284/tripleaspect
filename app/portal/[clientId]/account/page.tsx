@@ -32,7 +32,7 @@ export default async function ClientAccountPage({ params }: Props) {
     .eq('client_id', clientId)
     .order('created_at', { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   return (
     <div className="min-h-screen bg-surface-0">

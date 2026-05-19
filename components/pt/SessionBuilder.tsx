@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import Image from 'next/image';
 import {
   Exercise, SessionItem, Session, SessionCategory,
   ForgingMetrics, HealingMetrics, VerseMetrics, PrescribedMetrics,
+  SessionTemplate,
 } from '@/types/database';
 import { CATEGORY_CONFIG, formatMetricsSummary, getInitials } from '@/lib/utils';
 import { extractYouTubeVideoId } from '@/lib/youtube';
@@ -299,6 +301,199 @@ function MetricForm({
   );
 }
 
+// ─── Template Picker Modal ────────────────────────────────
+
+function TemplatePicker({
+  onLoad, onClose,
+}: {
+  onLoad:  (tpl: SessionTemplate) => void;
+  onClose: () => void;
+}) {
+  const [templates, setTemplates] = useState<SessionTemplate[]>([]);
+  const [loading,   setLoading]   = useState(true);
+  const [search,    setSearch]    = useState('');
+
+  useEffect(() => {
+    fetch('/api/templates')
+      .then(r => r.json())
+      .then(data => { setTemplates(Array.isArray(data) ? data : []); setLoading(false); });
+  }, []);
+
+  const filtered = templates.filter(t =>
+    !search || t.title.toLowerCase().includes(search.toLowerCase()),
+  );
+
+  const privateTemplates = filtered.filter(t => !t.is_public);
+  const publicTemplates  = filtered.filter(t => t.is_public);
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 animate-fade-in" onClick={onClose} />
+      <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 max-w-lg mx-auto bg-surface-2 border border-surface-border rounded-2xl z-50 shadow-surface animate-scale-in overflow-hidden" style={{ maxHeight: '70vh' }}>
+
+        <div className="p-4 border-b border-surface-border">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-slate-200">Load from Template</h3>
+            <button onClick={onClose} className="btn-ghost px-2 text-lg leading-none">×</button>
+          </div>
+          <input
+            autoFocus
+            type="text"
+            placeholder="Search templates..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="input"
+          />
+        </div>
+
+        <div className="overflow-y-auto" style={{ maxHeight: '55vh' }}>
+          {loading && (
+            <div className="py-10 flex justify-center">
+              <span className="w-5 h-5 border-2 border-slate-600 border-t-indigo-400 rounded-full animate-spin" />
+            </div>
+          )}
+
+          {!loading && filtered.length === 0 && (
+            <div className="py-10 text-center text-slate-600 font-mono text-sm">
+              No templates yet. Save a session as a template to see it here.
+            </div>
+          )}
+
+          {!loading && privateTemplates.length > 0 && (
+            <>
+              <p className="px-4 py-2 text-2xs font-mono text-slate-600 uppercase tracking-widest border-b border-surface-border">
+                My Templates
+              </p>
+              {privateTemplates.map(t => <TemplateRow key={t.id} template={t} onLoad={onLoad} onClose={onClose} />)}
+            </>
+          )}
+
+          {!loading && publicTemplates.length > 0 && (
+            <>
+              <p className="px-4 py-2 text-2xs font-mono text-slate-600 uppercase tracking-widest border-b border-surface-border">
+                Public Library
+              </p>
+              {publicTemplates.map(t => <TemplateRow key={t.id} template={t} onLoad={onLoad} onClose={onClose} />)}
+            </>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function TemplateRow({ template, onLoad, onClose }: { template: SessionTemplate; onLoad: (t: SessionTemplate) => void; onClose: () => void }) {
+  const cfg   = CATEGORY_CONFIG[template.category as SessionCategory];
+  const count = template.template_items?.length ?? 0;
+  return (
+    <button
+      type="button"
+      onClick={() => { onLoad(template); onClose(); }}
+      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-surface-4 transition-colors text-left border-b border-surface-border/50"
+    >
+      <span className={`text-base flex-shrink-0 ${cfg.color}`}>{cfg.icon}</span>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-slate-200">{template.title}</p>
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="text-2xs font-mono text-slate-600">
+            {count} exercise{count !== 1 ? 's' : ''}
+          </p>
+          {template.is_public && template.pt_name && (
+            <span className="flex items-center gap-1">
+              <span className="w-4 h-4 rounded-full overflow-hidden bg-surface-4 border border-surface-border flex-shrink-0 flex items-center justify-center">
+                {template.pt?.logo_url ? (
+                  <Image src={template.pt.avatar_url} alt={template.pt_name} width={16} height={16} className="object-cover w-full h-full" unoptimized />
+                ) : (
+                  <span className="text-2xs font-mono text-slate-500">{template.pt_name[0]}</span>
+                )}
+              </span>
+              <span className="text-2xs font-mono text-indigo-400/70">{template.pt_name}</span>
+            </span>
+          )}
+        </div>
+      </div>
+      <span className={`text-2xs font-mono px-2 py-0.5 rounded ${cfg.bg} ${cfg.color}`}>
+        {cfg.label}
+      </span>
+    </button>
+  );
+}
+
+// ─── Save Template Modal ──────────────────────────────────
+
+function SaveTemplateModal({
+  defaultTitle,
+  onSave,
+  onClose,
+}: {
+  defaultTitle: string;
+  onSave:       (name: string) => Promise<void>;
+  onClose:      () => void;
+}) {
+  const [name,   setName]   = useState(defaultTitle);
+  const [saving, setSaving] = useState(false);
+  const [err,    setErr]    = useState<string | null>(null);
+  const [done,   setDone]   = useState(false);
+
+  async function handleSave() {
+    if (!name.trim()) { setErr('Template name is required.'); return; }
+    setSaving(true);
+    try {
+      await onSave(name.trim());
+      setDone(true);
+      setTimeout(onClose, 1200);
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : 'Failed to save template');
+      setSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 animate-fade-in" onClick={onClose} />
+      <div className="fixed inset-x-4 top-1/2 -translate-y-1/2 max-w-sm mx-auto bg-surface-2 border border-surface-border rounded-2xl z-50 shadow-surface animate-scale-in p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-slate-200">Save as Template</h3>
+          <button onClick={onClose} className="btn-ghost px-2 text-lg leading-none">×</button>
+        </div>
+        <p className="text-xs font-mono text-slate-500">
+          Save this session's exercises as a reusable template. You can share it publicly with other PTs from the Template Library.
+        </p>
+        {done ? (
+          <p className="text-sm font-mono text-emerald-400 text-center py-2">✓ Template saved!</p>
+        ) : (
+          <>
+            <div>
+              <label className="label block mb-1">Template Name</label>
+              <input
+                autoFocus
+                type="text"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleSave()}
+                className="input"
+                placeholder="e.g. Lower Body Strength A"
+              />
+            </div>
+            {err && <p className="text-xs font-mono text-red-400">{err}</p>}
+            <div className="flex gap-2 justify-end">
+              <button type="button" onClick={onClose} className="btn-ghost text-sm">Cancel</button>
+              <button onClick={handleSave} disabled={saving} className="btn-primary text-sm px-5">
+                {saving ? (
+                  <span className="flex items-center gap-2">
+                    <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Saving…
+                  </span>
+                ) : 'Save Template'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
 // ─── Item Card ────────────────────────────────────────────
 
 function ItemCard({
@@ -449,9 +644,11 @@ export default function SessionBuilder({
   const [schedDate,   setSchedDate]   = useState(initialSession?.scheduled_date ?? '');
   const [notes,       setNotes]       = useState(initialSession?.notes ?? '');
   const [items,       setItems]       = useState<DraftItem[]>([]);
-  const [showPicker,  setShowPicker]  = useState(false);
-  const [saving,      setSaving]      = useState(false);
-  const [error,       setError]       = useState<string | null>(null);
+  const [showPicker,        setShowPicker]        = useState(false);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [showSaveTemplate,  setShowSaveTemplate]  = useState(false);
+  const [saving,            setSaving]            = useState(false);
+  const [error,             setError]             = useState<string | null>(null);
 
   const cfg = CATEGORY_CONFIG[category];
 
@@ -515,6 +712,50 @@ export default function SessionBuilder({
 
   function collapseAll() {
     setItems(prev => prev.map(i => ({ ...i, expanded: false })));
+  }
+
+  function handleLoadTemplate(tpl: SessionTemplate) {
+    const tplItems = tpl.template_items ?? [];
+    setItems(
+      [...tplItems]
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map(item => ({
+          id:                   newDraftId(),
+          exercise:             item.exercise as Exercise,
+          prescribed_metrics:   Object.fromEntries(
+            Object.entries(item.prescribed_metrics ?? {}).map(([k, v]) => [k, String(v)]),
+          ),
+          custom_coaching_cues: item.custom_coaching_cues ?? '',
+          custom_youtube_url:   item.custom_youtube_url   ?? '',
+          expanded:             false,
+        }))
+    );
+    if (tpl.category) setCategory(tpl.category as SessionCategory);
+    if (!title.trim()) setTitle(tpl.title);
+  }
+
+  async function handleSaveAsTemplate(templateName: string) {
+    const payload = {
+      title:    templateName,
+      category,
+      notes:    notes || null,
+      items: items.map((item, idx) => ({
+        exercise_id:          item.exercise.id,
+        sort_order:           idx,
+        prescribed_metrics:   buildMetricsPayload(item.prescribed_metrics, category),
+        custom_coaching_cues: item.custom_coaching_cues || null,
+        custom_youtube_url:   item.custom_youtube_url   || null,
+      })),
+    };
+    const res = await fetch('/api/templates', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data.error ?? 'Failed to save template');
+    }
   }
 
   // ── Save ────────────────────────────────────────────────
@@ -697,15 +938,24 @@ export default function SessionBuilder({
         ))}
       </div>
 
-      {/* Add exercise button */}
-      <button
-        type="button"
-        onClick={() => setShowPicker(true)}
-        className={`w-full py-3 rounded-xl border border-dashed transition-all text-sm font-medium flex items-center justify-center gap-2 ${cfg.color} border-current/20 hover:border-current/50 hover:${cfg.bg}`}
-      >
-        <span className="text-base">+</span>
-        Add Exercise from Library
-      </button>
+      {/* Add exercise / Load template buttons */}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setShowPicker(true)}
+          className={`flex-1 py-3 rounded-xl border border-dashed transition-all text-sm font-medium flex items-center justify-center gap-2 ${cfg.color} border-current/20 hover:border-current/50`}
+        >
+          <span className="text-base">+</span>
+          Add Exercise
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowTemplatePicker(true)}
+          className="py-3 px-5 rounded-xl border border-dashed border-indigo-500/20 text-indigo-400 hover:border-indigo-500/50 transition-all text-sm font-medium flex items-center gap-2"
+        >
+          ⊞ Load Template
+        </button>
+      </div>
 
       {/* Error */}
       {error && (
@@ -715,24 +965,34 @@ export default function SessionBuilder({
       )}
 
       {/* Save bar */}
-      <div className="flex items-center justify-end gap-3 pt-2">
-        <button type="button" onClick={onCancel} className="btn-ghost">
-          Discard
-        </button>
+      <div className="flex items-center justify-between gap-3 pt-2">
         <button
-          onClick={handleSave}
-          disabled={saving}
-          className="btn-primary px-6"
+          type="button"
+          onClick={() => setShowSaveTemplate(true)}
+          disabled={items.length === 0}
+          className="btn-ghost text-xs text-indigo-400 hover:text-indigo-300 disabled:opacity-30"
         >
-          {saving ? (
-            <span className="flex items-center gap-2">
-              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              Saving...
-            </span>
-          ) : (
-            initialSession ? 'Update Session' : 'Save Session'
-          )}
+          ⊞ Save as Template
         </button>
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={onCancel} className="btn-ghost">
+            Discard
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="btn-primary px-6"
+          >
+            {saving ? (
+              <span className="flex items-center gap-2">
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Saving...
+              </span>
+            ) : (
+              initialSession ? 'Update Session' : 'Save Session'
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Exercise picker modal */}
@@ -742,6 +1002,23 @@ export default function SessionBuilder({
           category={category}
           onSelect={addExercise}
           onClose={() => setShowPicker(false)}
+        />
+      )}
+
+      {/* Template picker modal */}
+      {showTemplatePicker && (
+        <TemplatePicker
+          onLoad={handleLoadTemplate}
+          onClose={() => setShowTemplatePicker(false)}
+        />
+      )}
+
+      {/* Save as template modal */}
+      {showSaveTemplate && (
+        <SaveTemplateModal
+          defaultTitle={title || 'My Template'}
+          onSave={handleSaveAsTemplate}
+          onClose={() => setShowSaveTemplate(false)}
         />
       )}
     </div>

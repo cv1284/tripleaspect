@@ -31,7 +31,7 @@ export async function PATCH(req: NextRequest) {
     .eq('client_id', user.id)
     .order('created_at', { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (!agreement) {
     return NextResponse.json({ error: 'No agreement found' }, { status: 404 });
@@ -43,7 +43,7 @@ export async function PATCH(req: NextRequest) {
     .eq('id', agreement.id)
     .eq('client_id', user.id)   // belt-and-braces ownership check
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

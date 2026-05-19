@@ -1,18 +1,20 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { getInitials } from '@/lib/utils';
 
 interface Props {
-  profile:  { full_name: string | null; email: string };
+  profile:  { full_name: string | null; email: string; avatar_url?: string | null };
   isOwner?: boolean;
 }
 
 const NAV_ITEMS = [
-  { href: '/pt/clients',  label: 'Clients',  icon: '◧' },
-  { href: '/pt/account',  label: 'Account',  icon: '◉' },
+  { href: '/pt/clients',   label: 'Clients',   icon: '◧' },
+  { href: '/pt/templates', label: 'Templates', icon: '⊞' },
+  { href: '/pt/account',   label: 'Account',   icon: '◉' },
 ] as const;
 
 export default function PTNav({ profile, isOwner }: Props) {
@@ -84,8 +86,10 @@ export default function PTNav({ profile, isOwner }: Props) {
         {/* User identity + sign out */}
         <div className="p-3 border-t border-surface-border space-y-1">
           <div className="flex items-center gap-2.5 px-2 py-1.5">
-            <div className="w-7 h-7 rounded-full bg-surface-4 border border-surface-border flex items-center justify-center text-xs font-mono font-semibold text-slate-300 flex-shrink-0">
-              {initials}
+            <div className="w-7 h-7 rounded-full bg-surface-4 border border-surface-border flex items-center justify-center text-xs font-mono font-semibold text-slate-300 flex-shrink-0 overflow-hidden">
+              {profile.avatar_url ? (
+                <Image src={profile.avatar_url} alt="logo" width={28} height={28} className="object-cover w-full h-full" unoptimized />
+              ) : initials}
             </div>
             <div className="min-w-0">
               <p className="text-xs font-medium text-slate-300 truncate">
@@ -117,8 +121,10 @@ export default function PTNav({ profile, isOwner }: Props) {
           className="flex items-center gap-2 text-xs font-mono text-slate-500 hover:text-slate-300 transition-colors"
           title="Sign out"
         >
-          <div className="w-7 h-7 rounded-full bg-surface-4 border border-surface-border flex items-center justify-center text-xs font-mono font-semibold text-slate-300">
-            {initials}
+          <div className="w-7 h-7 rounded-full bg-surface-4 border border-surface-border flex items-center justify-center text-xs font-mono font-semibold text-slate-300 overflow-hidden flex-shrink-0">
+            {profile.avatar_url ? (
+              <Image src={profile.avatar_url} alt="logo" width={28} height={28} className="object-cover w-full h-full" unoptimized />
+            ) : initials}
           </div>
           <span className="text-slate-600">Sign out</span>
         </button>

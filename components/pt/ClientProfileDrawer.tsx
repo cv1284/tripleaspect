@@ -217,13 +217,9 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
   async function fetchSessions() {
     if (!client) return;
     setSessionsLoading(true);
-    const supabase = createClient();
-    const { data } = await supabase
-      .from('sessions')
-      .select('id, title, category, scheduled_date, completed_at')
-      .eq('client_id', client.id)
-      .order('scheduled_date', { ascending: false });
-    setSessions(data ?? []);
+    const res = await fetch(`/api/sessions?clientId=${client.id}`);
+    const data = res.ok ? await res.json() : [];
+    setSessions(data);
     setSessionsLoading(false);
   }
 

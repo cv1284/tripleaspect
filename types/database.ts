@@ -14,7 +14,8 @@ export interface Profile {
   email:       string;
   full_name:   string | null;
   role:        UserRole;
-  avatar_url:  string | null;
+  avatar_url:  string | null;  // personal profile photo — shown in nav
+  logo_url:    string | null;  // business brand mark — shown on public templates
   created_at:  string;
   updated_at:  string;
 }
@@ -179,4 +180,34 @@ export function getOnboardingDocs(agreement: ClientAgreement): OnboardingDoc[] {
 
 export function isOnboardingComplete(agreement: ClientAgreement): boolean {
   return agreement.parq_signed && agreement.waiver_signed && agreement.consent_signed;
+}
+
+// ─── Session Templates ─────────────────────────────────────
+
+export interface SessionTemplate {
+  id:         string;
+  pt_id:      string;
+  pt_name:    string | null;  // denormalized at save time for public display
+  title:      string;
+  category:   SessionCategory;
+  notes:      string | null;
+  is_public:  boolean;
+  created_at: string;
+  updated_at: string;
+  // Joined
+  pt?:             { logo_url: string | null } | null;
+  template_items?: SessionTemplateItem[];
+}
+
+export interface SessionTemplateItem {
+  id:                   string;
+  template_id:          string;
+  exercise_id:          string;
+  sort_order:           number;
+  prescribed_metrics:   PrescribedMetrics;
+  custom_coaching_cues: string | null;
+  custom_youtube_url:   string | null;
+  created_at:           string;
+  // Joined
+  exercise?: Exercise;
 }
