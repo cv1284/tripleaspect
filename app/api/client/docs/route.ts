@@ -30,27 +30,27 @@ export async function PATCH(req: NextRequest) {
   // Auth is validated above via JWT; ownership is enforced by filtering on user.id.
   const admin = createAdminClient();
 
-  const { data: agreements } = await admin
+  const { data: agreements, error: selErr } = await admin
     .from('client_agreements')
     .select('id')
     .eq('client_id', user.id)
     .order('created_at', { ascending: false })
     .limit(1);
 
+  if (selErr) return NextResponse.json({ error: `sel:${selErr.message}` }, { status: 500 });
+
   const agreement = agreements?.[0] ?? null;
   if (!agreement) {
     return NextResponse.json({ error: 'No agreement found' }, { status: 404 });
   }
 
-  const { error } = await admin
+  const { error: updErr } = await admin
     .from('client_agreements')
     .update(patch)
     .eq('id', agreement.id)
     .eq('client_id', user.id);
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+  if (updErr) return NextResponse.json({ error: `upd:${updErr.message}` }, { status: 500 });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, v: 4 });
 }
