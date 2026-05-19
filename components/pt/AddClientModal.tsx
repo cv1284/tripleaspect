@@ -75,6 +75,7 @@ export default function AddClientModal({ onClose, onAdded }: Props) {
       full_name:   form.full_name || null,
       role:        'client',
       avatar_url:  null,
+      logo_url:    null,
       created_at:  new Date().toISOString(),
       updated_at:  new Date().toISOString(),
       agreement,

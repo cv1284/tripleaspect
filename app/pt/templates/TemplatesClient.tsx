@@ -165,7 +165,7 @@ function TemplateCard({
               <span className="flex items-center gap-1.5">
                 <span className="w-4 h-4 rounded-full overflow-hidden bg-surface-4 border border-surface-border flex-shrink-0 flex items-center justify-center">
                   {template.pt?.logo_url ? (
-                    <Image src={template.pt.avatar_url} alt={template.pt_name} width={16} height={16} className="object-cover w-full h-full" unoptimized />
+                    <Image src={template.pt.logo_url!} alt={template.pt_name} width={16} height={16} className="object-cover w-full h-full" unoptimized />
                   ) : (
                     <span className="text-2xs font-mono text-slate-500">{getInitials(template.pt_name)[0]}</span>
                   )}

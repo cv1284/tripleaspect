@@ -30,7 +30,7 @@ export default async function TemplatesPage() {
   return (
     <TemplatesClient
       ptId={user.id}
-      initialTemplates={(templates ?? []) as SessionTemplate[]}
+      initialTemplates={(templates ?? []) as unknown as SessionTemplate[]}
     />
   );
 }
