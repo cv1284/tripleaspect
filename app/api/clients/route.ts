@@ -46,16 +46,14 @@ export async function POST(req: NextRequest) {
   });
 
   if (inviteErr) {
-    // User already exists — look them up
     if (inviteErr.message.toLowerCase().includes('already been registered') ||
         inviteErr.message.toLowerCase().includes('already exists')) {
-      const { data: { users } } = await admin.auth.admin.listUsers({ perPage: 1000 });
-      const existing = users.find(u => u.email === email);
-      if (!existing) return NextResponse.json({ error: inviteErr.message }, { status: 400 });
-      clientId = existing.id;
-    } else {
-      return NextResponse.json({ error: inviteErr.message }, { status: 400 });
+      return NextResponse.json(
+        { error: 'This email is already registered on Brigid. Each client can only be linked to one PT at a time. If they are moving to you from another coach, contact support.' },
+        { status: 409 },
+      );
     }
+    return NextResponse.json({ error: inviteErr.message }, { status: 400 });
   } else {
     clientId = invite.user.id;
   }
