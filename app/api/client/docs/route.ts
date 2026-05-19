@@ -38,20 +38,18 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'No agreement found' }, { status: 404 });
   }
 
-  // Use admin client for the update — clients have SELECT-only RLS on client_agreements.
-  // Ownership was verified above via the user-session client.
+  // Admin client bypasses RLS — clients only have SELECT on client_agreements.
+  // Ownership verified above; only storage URL fields are allowed in patch.
   const admin = createAdminClient();
-  const { data, error } = await admin
+  const { error } = await admin
     .from('client_agreements')
     .update(patch)
     .eq('id', agreement.id)
-    .eq('client_id', user.id)
-    .select()
-    .maybeSingle();
+    .eq('client_id', user.id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json(data);
+  return NextResponse.json({ ok: true });
 }
