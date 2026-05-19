@@ -48,10 +48,11 @@ export async function POST(req: NextRequest) {
   if (profile?.role !== 'pt') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await req.json();
-  const { title, category, notes, items } = body as {
-    title:    string;
-    category: string;
-    notes?:   string;
+  const { title, category, notes, is_public, items } = body as {
+    title:     string;
+    category:  string;
+    notes?:    string;
+    is_public?: boolean;
     items: Array<{
       exercise_id:          string;
       sort_order:           number;
@@ -71,8 +72,8 @@ export async function POST(req: NextRequest) {
       pt_name:  profile.full_name ?? null,
       title:    title.trim(),
       category,
-      notes:    notes?.trim() || null,
-      is_public: false,
+      notes:     notes?.trim() || null,
+      is_public: is_public ?? false,
     })
     .select('id')
     .single();

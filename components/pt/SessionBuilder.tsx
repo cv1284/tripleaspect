@@ -427,19 +427,20 @@ function SaveTemplateModal({
   onClose,
 }: {
   defaultTitle: string;
-  onSave:       (name: string) => Promise<void>;
+  onSave:       (name: string, isPublic: boolean) => Promise<void>;
   onClose:      () => void;
 }) {
-  const [name,   setName]   = useState(defaultTitle);
-  const [saving, setSaving] = useState(false);
-  const [err,    setErr]    = useState<string | null>(null);
-  const [done,   setDone]   = useState(false);
+  const [name,     setName]     = useState(defaultTitle);
+  const [isPublic, setIsPublic] = useState(false);
+  const [saving,   setSaving]   = useState(false);
+  const [err,      setErr]      = useState<string | null>(null);
+  const [done,     setDone]     = useState(false);
 
   async function handleSave() {
     if (!name.trim()) { setErr('Template name is required.'); return; }
     setSaving(true);
     try {
-      await onSave(name.trim());
+      await onSave(name.trim(), isPublic);
       setDone(true);
       setTimeout(onClose, 1200);
     } catch (e: unknown) {
@@ -456,9 +457,6 @@ function SaveTemplateModal({
           <h3 className="font-semibold text-slate-200">Save as Template</h3>
           <button onClick={onClose} className="btn-ghost px-2 text-lg leading-none">×</button>
         </div>
-        <p className="text-xs font-mono text-slate-500">
-          Save this session's exercises as a reusable template. You can share it publicly with other PTs from the Template Library.
-        </p>
         {done ? (
           <p className="text-sm font-mono text-emerald-400 text-center py-2">✓ Template saved!</p>
         ) : (
@@ -475,6 +473,36 @@ function SaveTemplateModal({
                 placeholder="e.g. Lower Body Strength A"
               />
             </div>
+
+            {/* Private / Public toggle */}
+            <div className={`flex items-start gap-3 p-3 rounded-xl border transition-colors cursor-pointer ${
+              isPublic
+                ? 'bg-indigo-500/10 border-indigo-500/30'
+                : 'bg-surface-3 border-surface-border'
+            }`} onClick={() => setIsPublic(p => !p)}>
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); setIsPublic(p => !p); }}
+                className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 mt-0.5 ${
+                  isPublic ? 'bg-indigo-500' : 'bg-surface-4'
+                }`}
+              >
+                <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                  isPublic ? 'translate-x-[22px]' : 'translate-x-0.5'
+                }`} />
+              </button>
+              <div>
+                <p className={`text-sm font-medium ${isPublic ? 'text-indigo-300' : 'text-slate-400'}`}>
+                  {isPublic ? 'Share publicly' : 'Keep private'}
+                </p>
+                <p className="text-2xs font-mono text-slate-600 mt-0.5 leading-relaxed">
+                  {isPublic
+                    ? 'Visible to all PTs in the template library, with your name as author.'
+                    : 'Only visible to you. You can share it later from the Template Library.'}
+                </p>
+              </div>
+            </div>
+
             {err && <p className="text-xs font-mono text-red-400">{err}</p>}
             <div className="flex gap-2 justify-end">
               <button type="button" onClick={onClose} className="btn-ghost text-sm">Cancel</button>
@@ -734,11 +762,12 @@ export default function SessionBuilder({
     if (!title.trim()) setTitle(tpl.title);
   }
 
-  async function handleSaveAsTemplate(templateName: string) {
+  async function handleSaveAsTemplate(templateName: string, isPublic: boolean) {
     const payload = {
-      title:    templateName,
+      title:     templateName,
       category,
-      notes:    notes || null,
+      notes:     notes || null,
+      is_public: isPublic,
       items: items.map((item, idx) => ({
         exercise_id:          item.exercise.id,
         sort_order:           idx,
