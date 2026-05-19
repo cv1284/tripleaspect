@@ -37,7 +37,7 @@ export async function PATCH(req: NextRequest) {
     .order('created_at', { ascending: false })
     .limit(1);
 
-  if (selErr) return NextResponse.json({ error: `sel:${selErr.message}` }, { status: 500 });
+  if (selErr) return NextResponse.json({ error: selErr.message }, { status: 500 });
 
   const agreement = agreements?.[0] ?? null;
   if (!agreement) {
@@ -50,7 +50,7 @@ export async function PATCH(req: NextRequest) {
     .eq('id', agreement.id)
     .eq('client_id', user.id);
 
-  if (updErr) return NextResponse.json({ error: `upd:${updErr.message}` }, { status: 500 });
+  if (updErr) return NextResponse.json({ error: updErr.message }, { status: 500 });
 
-  return NextResponse.json({ ok: true, v: 4 });
+  return NextResponse.json({ ok: true });
 }
