@@ -13,8 +13,10 @@ export async function POST(req: NextRequest) {
 
   const { name, category, description, coaching_cues, default_video_url, tags } = await req.json();
 
-  if (!name?.trim())     return NextResponse.json({ error: 'Name is required' }, { status: 400 });
-  if (!category)         return NextResponse.json({ error: 'Category is required' }, { status: 400 });
+  const validCategories = ['healing', 'forging', 'verse'];
+  if (!name?.trim())                          return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+  if (!category)                              return NextResponse.json({ error: 'Category is required' }, { status: 400 });
+  if (!validCategories.includes(category))    return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
 
   const parsedTags = typeof tags === 'string'
     ? tags.split(',').map((t: string) => t.trim()).filter(Boolean)

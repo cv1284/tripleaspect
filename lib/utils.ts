@@ -120,6 +120,18 @@ export function formatMetricsSummary(metrics: Record<string, unknown>, category:
   return '—';
 }
 
+// ─── HTML Escaping ────────────────────────────────────────
+// Use whenever interpolating user data into an HTML string (e.g. email templates).
+export function escapeHtml(str: string | null | undefined): string {
+  if (!str) return '';
+  return str
+    .replace(/&/g,  '&amp;')
+    .replace(/</g,  '&lt;')
+    .replace(/>/g,  '&gt;')
+    .replace(/"/g,  '&quot;')
+    .replace(/'/g,  '&#39;');
+}
+
 // ─── Currency Formatter ───────────────────────────────────
 export function formatCurrency(amount: number | null, currency = 'GBP'): string {
   if (amount === null) return '—';

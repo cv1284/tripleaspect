@@ -25,6 +25,20 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'No valid fields' }, { status: 400 });
   }
 
+  // Reject non-http(s) URLs — prevents javascript: URIs being stored and rendered as links
+  for (const [key, val] of Object.entries(patch)) {
+    if (typeof val === 'string' && val) {
+      try {
+        const { protocol } = new URL(val);
+        if (protocol !== 'http:' && protocol !== 'https:') {
+          return NextResponse.json({ error: `${key}: only http/https URLs are accepted` }, { status: 400 });
+        }
+      } catch {
+        return NextResponse.json({ error: `${key}: must be a valid URL` }, { status: 400 });
+      }
+    }
+  }
+
   // Use admin client for all DB ops — clients have SELECT-only RLS on client_agreements
   // and the single-object accept header conflicts with RLS filters.
   // Auth is validated above via JWT; ownership is enforced by filtering on user.id.
