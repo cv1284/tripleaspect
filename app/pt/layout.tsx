@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import PTNav from '@/components/pt/PTNav';
+import BugReportButton from '@/components/pt/BugReportButton';
 
 export default async function PTLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -27,6 +28,7 @@ export default async function PTLayout({ children }: { children: React.ReactNode
       <main className="flex-1 overflow-y-auto min-w-0 pt-14 lg:pt-0 pb-16 lg:pb-0">
         {children}
       </main>
+      <BugReportButton userId={user.id} userEmail={user.email ?? ''} />
     </div>
   );
 }

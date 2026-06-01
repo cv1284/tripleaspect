@@ -676,6 +676,7 @@ export default function SessionBuilder({
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [showSaveTemplate,  setShowSaveTemplate]  = useState(false);
   const [saving,            setSaving]            = useState(false);
+  const [duplicating,       setDuplicating]       = useState(false);
   const [error,             setError]             = useState<string | null>(null);
 
   const cfg = CATEGORY_CONFIG[category];
@@ -784,6 +785,19 @@ export default function SessionBuilder({
     if (!res.ok) {
       const data = await res.json();
       throw new Error(data.error ?? 'Failed to save template');
+    }
+  }
+
+  async function handleDuplicate() {
+    if (!initialSession?.id) return;
+    setDuplicating(true);
+    const res = await fetch(`/api/sessions/${initialSession.id}/duplicate`, { method: 'POST' });
+    setDuplicating(false);
+    if (res.ok) {
+      const newSession = await res.json();
+      onSaved(newSession);
+    } else {
+      setError('Failed to duplicate session.');
     }
   }
 
@@ -995,14 +1009,32 @@ export default function SessionBuilder({
 
       {/* Save bar */}
       <div className="flex items-center justify-between gap-3 pt-2">
-        <button
-          type="button"
-          onClick={() => setShowSaveTemplate(true)}
-          disabled={items.length === 0}
-          className="btn-ghost text-xs text-indigo-400 hover:text-indigo-300 disabled:opacity-30"
-        >
-          ⊞ Save as Template
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowSaveTemplate(true)}
+            disabled={items.length === 0}
+            className="btn-ghost text-xs text-indigo-400 hover:text-indigo-300 disabled:opacity-30"
+          >
+            ⊞ Save as Template
+          </button>
+          {initialSession && (
+            <button
+              type="button"
+              onClick={handleDuplicate}
+              disabled={duplicating}
+              className="btn-ghost text-xs text-slate-500 hover:text-indigo-400 disabled:opacity-30"
+              title="Duplicate this session"
+            >
+              {duplicating ? (
+                <span className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 border-2 border-slate-600 border-t-slate-300 rounded-full animate-spin" />
+                  Duplicating…
+                </span>
+              ) : '⎘ Duplicate'}
+            </button>
+          )}
+        </div>
         <div className="flex items-center gap-3">
           <button type="button" onClick={onCancel} className="btn-ghost">
             Discard

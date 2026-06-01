@@ -3,6 +3,18 @@
     {
       "path": "/api/cron/flag-inactive",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/block-expiry",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/session-reminder",
+      "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/archive-bug-reports",
+      "schedule": "0 3 1 * *"
     }
   ]
 }

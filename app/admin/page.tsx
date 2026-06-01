@@ -2,6 +2,8 @@ import { createClient }      from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { redirect }          from 'next/navigation';
 import AdminClient           from './AdminClient';
+import BugReportsPanel       from '@/components/admin/BugReportsPanel';
+import { BugReport }         from '@/types/database';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,5 +47,22 @@ export default async function AdminPage() {
     client_count: clientCountByPt[p.id] ?? 0,
   }));
 
-  return <AdminClient profiles={enriched} currentUserId={user.id} />;
+  // Fetch bug reports for the panel
+  const { data: bugReports } = await admin
+    .from('bug_reports')
+    .select(`
+      id, ref, user_id, url, page_title, notes, screenshot_url,
+      user_agent, report_type, status, resolved_note, resolved_at, created_at,
+      user:profiles ( full_name, email )
+    `)
+    .order('created_at', { ascending: false })
+    .limit(200);
+
+  return (
+    <div>
+      <BugReportsPanel initialReports={(bugReports ?? []) as unknown as BugReport[]} />
+      <div className="border-t border-surface-border" />
+      <AdminClient profiles={enriched} currentUserId={user.id} />
+    </div>
+  );
 }

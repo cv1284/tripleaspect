@@ -182,6 +182,24 @@ export function isOnboardingComplete(agreement: ClientAgreement): boolean {
   return agreement.parq_signed && agreement.waiver_signed && agreement.consent_signed;
 }
 
+// ─── Invoices (Stripe) ────────────────────────────────────
+
+export type InvoiceStatus = 'pending' | 'paid' | 'failed';
+
+export interface Invoice {
+  id:                       string;
+  agreement_id:             string;
+  stripe_invoice_id:        string | null;
+  stripe_payment_intent_id: string | null;
+  amount_pence:             number;
+  currency:                 string;
+  status:                   InvoiceStatus;
+  paid_at:                  string | null;
+  created_at:               string;
+  // Joined
+  agreement?: ClientAgreement & { client?: Profile };
+}
+
 // ─── Session Templates ─────────────────────────────────────
 
 export interface SessionTemplate {
@@ -197,6 +215,84 @@ export interface SessionTemplate {
   // Joined
   pt?:             { logo_url: string | null } | null;
   template_items?: SessionTemplateItem[];
+}
+
+// ─── Bug / Feature Reports ────────────────────────────────
+
+export type BugReportType   = 'bug' | 'feature';
+export type BugReportStatus = 'open' | 'resolved';
+
+export interface BugReport {
+  id:             string;
+  ref:            number;
+  user_id:        string;
+  url:            string;
+  page_title:     string;
+  notes:          string | null;
+  screenshot_url: string | null;
+  user_agent:     string | null;
+  report_type:    BugReportType;
+  status:         BugReportStatus;
+  resolved_note:  string | null;
+  resolved_at:    string | null;
+  created_at:     string;
+  // Joined
+  user?: { full_name: string | null; email: string };
+}
+
+export function bugRefLabel(r: Pick<BugReport, 'ref' | 'report_type'>): string {
+  return r.report_type === 'bug' ? `BUG-${r.ref}` : `REQ-${r.ref}`;
+}
+
+// ─── Programme Builder ─────────────────────────────────────
+
+export interface Programme {
+  id:          string;
+  pt_id:       string;
+  title:       string;
+  description: string | null;
+  category:    SessionCategory | null;
+  total_weeks: number;
+  is_public:   boolean;
+  created_at:  string;
+  updated_at:  string;
+  // Joined
+  weeks?: ProgrammeWeek[];
+  pt?:   { full_name: string | null; logo_url: string | null } | null;
+}
+
+export interface ProgrammeWeek {
+  id:           string;
+  programme_id: string;
+  week_number:  number;
+  label:        string | null;
+  // Joined
+  sessions?: ProgrammeSession[];
+}
+
+export interface ProgrammeSession {
+  id:          string;
+  week_id:     string;
+  day_of_week: number;   // 1=Mon … 7=Sun
+  title:       string;
+  category:    SessionCategory;
+  notes:       string | null;
+  sort_order:  number;
+  template_id: string | null;
+  // Joined
+  items?: ProgrammeSessionItem[];
+}
+
+export interface ProgrammeSessionItem {
+  id:                   string;
+  programme_session_id: string;
+  exercise_id:          string;
+  sort_order:           number;
+  prescribed_metrics:   PrescribedMetrics;
+  custom_coaching_cues: string | null;
+  custom_youtube_url:   string | null;
+  // Joined
+  exercise?: Exercise;
 }
 
 export interface SessionTemplateItem {

@@ -12,9 +12,11 @@ interface Props {
 }
 
 const NAV_ITEMS = [
-  { href: '/pt/clients',   label: 'Clients',   icon: '◧' },
-  { href: '/pt/templates', label: 'Templates', icon: '⊞' },
-  { href: '/pt/account',   label: 'Account',   icon: '◉' },
+  { href: '/pt/clients',    label: 'Clients',    icon: '◧' },
+  { href: '/pt/templates',  label: 'Templates',  icon: '⊞' },
+  { href: '/pt/programmes', label: 'Programmes', icon: '⊟' },
+  { href: '/pt/billing',    label: 'Billing',    icon: '◈' },
+  { href: '/pt/account',    label: 'Account',    icon: '◉' },
 ] as const;
 
 export default function PTNav({ profile, isOwner }: Props) {

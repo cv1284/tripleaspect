@@ -189,6 +189,7 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
   const [sessionsLoading,  setSessionsLoading]  = useState(false);
   const [deletingId,       setDeletingId]       = useState<string | null>(null);
   const [confirmDelete,    setConfirmDelete]    = useState<string | null>(null);
+  const [duplicatingId,    setDuplicatingId]    = useState<string | null>(null);
   const [confirmRemove,    setConfirmRemove]    = useState(false);
   const [removing,         setRemoving]         = useState(false);
   const [showGdprModal,    setShowGdprModal]    = useState(false);
@@ -233,6 +234,16 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
     const res = await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' });
     setDeletingId(null);
     if (res.ok) setSessions(prev => prev.filter(s => s.id !== sessionId));
+  }
+
+  async function handleDuplicateSession(sessionId: string) {
+    setDuplicatingId(sessionId);
+    const res = await fetch(`/api/sessions/${sessionId}/duplicate`, { method: 'POST' });
+    setDuplicatingId(null);
+    if (res.ok) {
+      const newSession: SessionRow = await res.json();
+      setSessions(prev => [newSession, ...prev]);
+    }
   }
 
   // Close on Escape
@@ -567,6 +578,14 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
                             Edit
                           </Link>
                           <button
+                            onClick={() => handleDuplicateSession(s.id)}
+                            disabled={duplicatingId === s.id}
+                            title="Duplicate session"
+                            className="btn-ghost py-1 px-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity text-slate-600 hover:text-indigo-400"
+                          >
+                            {duplicatingId === s.id ? '…' : '⎘'}
+                          </button>
+                          <button
                             onClick={() => handleDeleteSession(s.id)}
                             disabled={isDeleting}
                             className={`py-1 px-2 rounded text-xs font-mono transition-colors opacity-0 group-hover:opacity-100 ${
@@ -633,9 +652,8 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
           {tab === 'billing' && (
             <>
               <div className="p-3 rounded-lg bg-surface-2 border border-surface-border text-xs font-mono text-slate-500 leading-relaxed">
-                Stored privately for your reference only — never visible to the client.
-                Useful for tracking revenue and spotting renewal conversations early.
-                Stripe integration available in a future release.
+                Rate and notes are stored privately for your reference only — never visible to the client.
+                Stripe customer and subscription are created automatically when a client is added with a rate set.
               </div>
 
               <div>
@@ -675,17 +693,39 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
                 />
               </div>
 
-              {/* Stripe placeholders */}
-              <div className="p-3 rounded-lg border border-dashed border-surface-border">
-                <p className="label mb-2">Stripe (Future)</p>
-                <div className="space-y-2">
-                  <div>
-                    <p className="text-2xs font-mono text-slate-600">stripe_customer_id</p>
-                    <p className="text-xs font-mono text-slate-500">{client.agreement.stripe_customer_id ?? '—'}</p>
+              {/* Stripe info */}
+              <div className="p-3 rounded-lg border border-surface-border space-y-2">
+                <p className="label">Stripe</p>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-2xs font-mono text-slate-600">Customer</p>
+                    {client.agreement.stripe_customer_id ? (
+                      <a
+                        href={`https://dashboard.stripe.com/customers/${client.agreement.stripe_customer_id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-2xs font-mono text-indigo-400 hover:underline"
+                      >
+                        {client.agreement.stripe_customer_id.slice(0, 18)}… ↗
+                      </a>
+                    ) : (
+                      <p className="text-2xs font-mono text-slate-600">Not created yet</p>
+                    )}
                   </div>
-                  <div>
-                    <p className="text-2xs font-mono text-slate-600">stripe_subscription_id</p>
-                    <p className="text-xs font-mono text-slate-500">{client.agreement.stripe_subscription_id ?? '—'}</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-2xs font-mono text-slate-600">Subscription</p>
+                    {client.agreement.stripe_subscription_id ? (
+                      <a
+                        href={`https://dashboard.stripe.com/subscriptions/${client.agreement.stripe_subscription_id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-2xs font-mono text-indigo-400 hover:underline"
+                      >
+                        {client.agreement.stripe_subscription_id.slice(0, 18)}… ↗
+                      </a>
+                    ) : (
+                      <p className="text-2xs font-mono text-slate-600">—</p>
+                    )}
                   </div>
                 </div>
               </div>
