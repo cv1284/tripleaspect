@@ -1,5 +1,73 @@
 # Changelog
 
+## 2026-06-02 — Automated Data Boundary, Robustness & Injection Audit
+
+### Deployment Fix
+
+**DEPLOY-001 (CRITICAL) — Stripe lazy-init crash blocked Phase 2 deployment (`e1d178e`)**
+`lib/stripe.ts` called `new Stripe(process.env.STRIPE_SECRET_KEY!)` at module scope.
+During Next.js "Collecting page data" the key is `undefined`, throwing
+`"Neither apiKey nor config.authenticator provided"` and killing the build entirely.
+Phase 2 features (programmes, bug reports, billing, cron jobs) were never live.
+Fix: replaced with a `getStripe()` lazy getter; all callers updated.
+
+### Bug Fixes
+
+**BUG-001 (MEDIUM) — `PATCH /api/agreements` invalid status → raw Postgres 500 (`b1124aa`)**
+Passing an unrecognised `status` string hit the Postgres enum constraint and returned a
+raw 500 `"invalid input value for enum agreement_status"`. Added explicit allow-list
+validation before the DB call; now returns 400 with a human-readable message.
+
+**BUG-002 (MEDIUM) — `PATCH /api/agreements` type mismatch → raw Postgres 500 (`b1124aa`)**
+Passing a non-numeric string for `program_length_weeks` returned a raw 500
+`"invalid input syntax for type integer"`. Fixed by coercing with `Number()` and
+rejecting non-integers with 400 before the DB write.
+
+**BUG-003 (LOW-MEDIUM) — `PATCH /api/agreements` no bounds on `program_length_weeks` (`b1124aa`)**
+The PATCH handler had no range validation; values like 0 and 99999 were silently stored.
+Now enforces the same 1–260 rule as `POST /api/clients`.
+
+**BUG-004 (MEDIUM) — `PATCH /api/agreements` non-existent ID → raw PostgREST 500 (`b1124aa`)**
+Updating a non-existent or non-owned agreement returned PostgREST's internal
+`"Cannot coerce the result to a single JSON object"` 500. Now maps PGRST116 to
+404 "Agreement not found".
+
+**BUG-005 (LOW-MEDIUM) — `POST /api/templates` orphan template on bad exercise_id (`b1124aa`)**
+When `session_template_items` insert failed (FK violation on `exercise_id`), the template
+header row was left in the database with no items. Now the header is deleted in the
+error path before returning. FK violations (code 23503) now return 400
+`"One or more exercise IDs are invalid"` instead of leaking the constraint name.
+Also corrected success response to 201.
+
+**BUG-006 (LOW) — `POST /api/clients` `program_length_weeks = 0` bypassed validation (`b1124aa`)**
+`program_length_weeks ? parseInt(...)` treated `0` as falsy, silently converting it to
+`null` and skipping the 1–260 bounds check. Changed to `program_length_weeks != null`.
+
+### Audit Findings — No Fix Required
+
+- SQL injection (all endpoints) — Supabase ORM uses parameterized queries; payloads
+  stored as literal strings, never executed ✅
+- XSS in text fields (`billing_notes`, exercise names, template titles) — React JSX
+  auto-escapes all interpolations; payloads cannot execute in the UI ✅
+- Doc URL protocol validation (`javascript:`, `data:`, `ftp:`) — all correctly blocked
+  by existing `new URL()` + protocol allow-list in `/api/client/docs` ✅
+- Session DELETE IDOR — returns 404 for non-owned sessions ✅
+- Agreement PATCH field injection (`pt_id`, `client_id` in body) — field whitelist
+  correctly strips unrecognised keys ✅
+- Auth on all tested endpoints — 401/403 returned correctly ✅
+
+### Validation Rules Reference
+
+| Field | Endpoint | Rule |
+|-------|----------|------|
+| `program_length_weeks` | POST /api/clients, PATCH /api/agreements | Integer 1–260 or null |
+| `status` | PATCH /api/agreements | `active` \| `attention` \| `paused` \| `inactive` |
+| `agreement_model` | POST /api/clients, PATCH /api/agreements | `subscription` \| `fixed_block` \| `hybrid` |
+| `category` | POST /api/exercises | `healing` \| `forging` \| `verse` |
+| `*_storage_url` | PATCH /api/client/docs | `http:` or `https:` only |
+
+---
+
 ## 2026-06-01 — Security Audit: Input Validation & Injection Hardening
 
 ### Security Fixes
