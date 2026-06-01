@@ -1,7 +1,18 @@
 import Stripe from 'stripe';
 
+// Lazy singleton — avoids module-level instantiation that crashes Next.js during
+// "Collecting page data" when STRIPE_SECRET_KEY is absent in the build environment.
+let _stripe: Stripe | null = null;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2025-01-27.acacia' as any });
+function getStripe(): Stripe {
+  if (!_stripe) {
+    const key = process.env.STRIPE_SECRET_KEY;
+    if (!key) throw new Error('STRIPE_SECRET_KEY is not configured');
+    _stripe = new Stripe(key, { apiVersion: '2025-01-27.acacia' as any });
+  }
+  return _stripe;
+}
+export { getStripe };
 
 // Returns an existing Stripe customer ID or creates a new one.
 export async function getOrCreateCustomer(
@@ -9,6 +20,7 @@ export async function getOrCreateCustomer(
   name:        string | null,
   agreementId: string,
 ): Promise<string> {
+  const stripe = getStripe();
   // Check if a customer already exists with this email
   const existing = await stripe.customers.list({ email, limit: 1 });
   if (existing.data.length > 0) return existing.data[0].id;
@@ -29,6 +41,7 @@ export async function createSubscription(
   currency:    string,
   agreementId: string,
 ): Promise<Stripe.Subscription> {
+  const stripe = getStripe();
   // Create an inline price so the PT doesn't need to pre-configure Stripe products
   const price = await stripe.prices.create({
     currency:    currency.toLowerCase(),
@@ -54,6 +67,7 @@ export async function createPaymentIntent(
   currency:    string,
   agreementId: string,
 ): Promise<Stripe.PaymentIntent> {
+  const stripe = getStripe();
   return stripe.paymentIntents.create({
     amount:               amountPence,
     currency:             currency.toLowerCase(),
