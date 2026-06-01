@@ -74,6 +74,25 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
   }
 
+  // Validate enum fields before hitting the DB to return 400 instead of raw 500
+  const validStatuses = ['active', 'attention', 'paused', 'inactive'];
+  if ('status' in payload && !validStatuses.includes(payload.status as string)) {
+    return NextResponse.json({ error: 'Invalid status. Must be one of: active, attention, paused, inactive' }, { status: 400 });
+  }
+  const validModels = ['subscription', 'fixed_block', 'hybrid'];
+  if ('agreement_model' in payload && !validModels.includes(payload.agreement_model as string)) {
+    return NextResponse.json({ error: 'Invalid agreement_model. Must be one of: subscription, fixed_block, hybrid' }, { status: 400 });
+  }
+
+  // Coerce and validate program_length_weeks if provided
+  if ('program_length_weeks' in payload && payload.program_length_weeks !== null) {
+    const weeks = Number(payload.program_length_weeks);
+    if (!Number.isInteger(weeks) || weeks < 1 || weeks > 260) {
+      return NextResponse.json({ error: 'program_length_weeks must be an integer between 1 and 260' }, { status: 400 });
+    }
+    payload.program_length_weeks = weeks;
+  }
+
   const { data, error } = await supabase
     .from('client_agreements')
     .update(payload)
@@ -83,6 +102,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     .single();
 
   if (error) {
+    // PGRST116 = no rows matched — the agreement doesn't exist or belongs to another PT
+    if (error.code === 'PGRST116') {
+      return NextResponse.json({ error: 'Agreement not found' }, { status: 404 });
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 

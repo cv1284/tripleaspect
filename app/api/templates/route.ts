@@ -86,7 +86,16 @@ export async function POST(req: NextRequest) {
     .from('session_template_items')
     .insert(items.map(item => ({ ...item, template_id: template.id })));
 
-  if (itemErr) return NextResponse.json({ error: itemErr.message }, { status: 500 });
+  if (itemErr) {
+    // Roll back the orphan header so we never leave a template with no items
+    await supabase.from('session_templates').delete().eq('id', template.id);
+    // FK violation means the caller passed a non-existent exercise_id → 400, not 500
+    const isConstraintViolation = itemErr.code === '23503';
+    return NextResponse.json(
+      { error: isConstraintViolation ? 'One or more exercise IDs are invalid' : itemErr.message },
+      { status: isConstraintViolation ? 400 : 500 },
+    );
+  }
 
-  return NextResponse.json({ id: template.id });
+  return NextResponse.json({ id: template.id }, { status: 201 });
 }

@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid agreement_model' }, { status: 400 });
   }
 
-  const parsedWeeks = program_length_weeks ? parseInt(program_length_weeks) : null;
+  const parsedWeeks = program_length_weeks != null ? parseInt(program_length_weeks) : null;
   if (parsedWeeks !== null && (isNaN(parsedWeeks) || parsedWeeks < 1 || parsedWeeks > 260)) {
     return NextResponse.json({ error: 'program_length_weeks must be between 1 and 260' }, { status: 400 });
   }
