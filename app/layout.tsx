@@ -1,10 +1,13 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
   title:       'Brigid.pro',
   description: 'Precision coaching platform — Healing · Forging · Verse',
-  themeColor:  '#07070d',
+};
+
+export const viewport: Viewport = {
+  themeColor: '#07070d',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

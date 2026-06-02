@@ -7,8 +7,11 @@ export async function POST(req: NextRequest) {
   if (!email || !password) {
     return NextResponse.json({ error: 'Email and password are required.' }, { status: 400 });
   }
-  if (password.length < 8) {
-    return NextResponse.json({ error: 'Password must be at least 8 characters.' }, { status: 400 });
+  if (typeof password !== 'string' || password.trim().length < 8) {
+    return NextResponse.json({ error: 'Password must be at least 8 non-whitespace characters.' }, { status: 400 });
+  }
+  if (full_name && typeof full_name === 'string' && full_name.length > 255) {
+    return NextResponse.json({ error: 'Full name must be 255 characters or fewer.' }, { status: 400 });
   }
 
   // Cloudflare Turnstile verification

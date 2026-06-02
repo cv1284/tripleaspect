@@ -8,6 +8,18 @@ export async function POST(req: NextRequest) {
   const admin  = createAdminClient();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
+  // Only resend to emails that exist in our profiles table.
+  // Return the same generic success response for unknown emails to avoid user enumeration.
+  const { data: profile } = await admin
+    .from('profiles')
+    .select('id')
+    .eq('email', email)
+    .maybeSingle();
+
+  if (!profile) {
+    return NextResponse.json({ ok: true });
+  }
+
   const { error } = await admin.auth.admin.inviteUserByEmail(email, {
     redirectTo: `${appUrl}/auth/callback`,
   });

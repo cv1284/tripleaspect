@@ -1,5 +1,44 @@
 # Changelog
 
+## 2026-06-02 (Run 2) — Auth Layer Audit: Public Endpoint Security
+
+### Security Fixes
+
+**BUG-BRIGID-11 (MEDIUM) — Whitespace-only password bypasses length check in `POST /api/auth/pt-signup`**
+`password.length < 8` passed for a string of 8 space characters (e.g. `'        '`),
+allowing a functionally empty password through to Supabase's auth system.
+Fix: changed to `password.trim().length < 8`; also added `typeof password !== 'string'`
+type guard.
+
+**BUG-BRIGID-12 (LOW) — No maximum length on `full_name` in `POST /api/auth/pt-signup`**
+Strings of 5 000+ characters were accepted without a server-side cap and stored in
+both `user_metadata` and the `profiles` table. Fix: return HTTP 400 if `full_name`
+exceeds 255 characters.
+
+**BUG-BRIGID-13 (MEDIUM) — Unauthenticated callers could trigger platform invite emails to arbitrary addresses via `POST /api/auth/resend-invite`**
+The route called `admin.auth.admin.inviteUserByEmail(email)` without first confirming
+the email belonged to an existing user, allowing any unauthenticated request to send a
+Brigid invite email to any well-formed address.
+Fix: query `profiles` first; only call `inviteUserByEmail` when a matching profile
+exists. Unknown emails receive a generic `{ ok: true }` (user-enumeration prevention).
+
+### Housekeeping
+
+- `app/layout.tsx` — moved `themeColor` from `metadata` to `viewport` export per
+  Next.js 15 API; eliminates deprecation warning on every server render.
+- Added `scripts/cleanup-audit-accounts.ts` — removes ephemeral PT accounts created
+  during automated audit runs when `TURNSTILE_SECRET_KEY` is absent in dev.
+
+### Audit Findings — No Fix Required
+
+- All 9 protected API endpoints return 401/403 for unauthenticated requests ✅
+- XSS/SQL/type-coercion payloads all blocked at auth gate before deserialization ✅
+- No `dangerouslySetInnerHTML` in codebase — stored HTML tags cannot execute ✅
+- `escapeHtml()` applied to all email template interpolations ✅
+- Type coercion attacks (array/bool/number in typed fields) rejected by Supabase ✅
+
+---
+
 ## 2026-06-02 — Automated Data Boundary, Robustness & Injection Audit
 
 ### Deployment Fix
