@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
       start_date:           start_date           ?? new Date().toISOString().split('T')[0],
       renewal_date:         renewal_date         || null,
       program_length_weeks: parsedWeeks,
-      manual_price_numeric: manual_price_numeric ? parseFloat(manual_price_numeric) : null,
+      manual_price_numeric: manual_price_numeric != null ? parseFloat(manual_price_numeric) : null,
       manual_currency:      manual_currency      ?? 'GBP',
     }, { onConflict: 'client_id,pt_id' })
     .select()

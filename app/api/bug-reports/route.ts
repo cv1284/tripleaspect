@@ -13,6 +13,18 @@ export async function POST(req: NextRequest) {
   const { url, page_title, notes, report_type, screenshot_url } = await req.json();
   if (!url) return NextResponse.json({ error: 'url is required' }, { status: 400 });
 
+  // Reject non-http(s) URLs — prevents javascript: or data: URIs reaching the DB and email templates
+  if (typeof url === 'string' && url) {
+    try {
+      const { protocol } = new URL(url, 'https://tripleaspect.fit');
+      if (protocol !== 'http:' && protocol !== 'https:') {
+        return NextResponse.json({ error: 'url: only http/https URLs are accepted' }, { status: 400 });
+      }
+    } catch {
+      // Relative path (e.g. /pt/clients) is fine — the BugReportButton sends pathname+search
+    }
+  }
+
   const admin = createAdminClient();
 
   const { data: report, error } = await admin

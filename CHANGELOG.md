@@ -1,5 +1,79 @@
 # Changelog
 
+## 2026-06-03 — Data Boundary, Robustness & Injection Resiliency Audit
+
+### Security Fixes
+
+**BUG-BRIGID-14 (MEDIUM) — `POST /api/bug-reports` url field accepted non-http(s) URIs**
+The `url` field accepted any string including `javascript:` and `data:` URIs.
+These were stored in `bug_reports.url` and inserted into the admin HTML notification
+email as a bare `href` attribute. `escapeHtml()` sanitises entity characters but does
+not block protocol injection. Direct navigation to the admin panel rendered the URL as
+an `<a href>` (React 18 blocks `javascript:` in href, but `data:` and other schemes
+were not blocked in the raw HTML email).
+Fix: added `new URL(val, baseOrigin)` parse + `http:`/`https:` protocol whitelist in
+the POST handler (mirrors the existing guard already present in `PATCH /api/client/docs`).
+Relative paths (e.g. `/pt/clients`) are still accepted as the BugReportButton sends
+`window.location.pathname + window.location.search`.
+
+**BUG-BRIGID-15 (MEDIUM) — `POST /api/pt/logo` accepted SVG uploads**
+`image/svg+xml` was in the server-side `ALLOWED_TYPES` list for brand logo upload.
+SVG files can embed `<script>` elements that execute when the Supabase Storage URL is
+opened directly in a browser tab (even though `<img>` tags sandbox SVG JavaScript).
+Previous audit (2026-06-01) noted `<img>` provides adequate protection; this fix applies
+a defense-in-depth posture by removing the SVG upload path entirely — the platform has
+no requirement for SVG logos and the removal eliminates the attack surface.
+Fix: removed `image/svg+xml` from server `ALLOWED_TYPES`; updated client `accept`
+attribute and hint copy to match; removed `svg` from DELETE cleanup loop; removed
+special `file.type === 'image/svg+xml' ? 'svg'` ext branch.
+
+### Bug Fixes
+
+**BUG-BRIGID-16 (LOW) — `POST /api/programmes` NaN propagation on non-numeric `total_weeks`**
+`parseInt('abc')` returns NaN; `Math.max(NaN, 1)` and `Math.min(NaN, 52)` both
+propagate NaN per JS spec. `JSON.stringify({ total_weeks: NaN })` serialises as `null`,
+which then hits a NOT NULL database constraint and returns a 500 instead of a 400.
+`Array.from({ length: NaN })` creates an empty array, so no week rows are scaffolded.
+Fix: added explicit `isNaN` guard returning HTTP 400 before the clamp logic.
+
+**BUG-BRIGID-17 (LOW) — `POST /api/clients` manual_price_numeric = 0 silently discarded**
+Falsy check `manual_price_numeric ? parseFloat(...) : null` caused a price of £0
+(free client on record) to be stored as `null` rather than `0.00`, discarding the
+user's explicit intent. The corresponding PATCH handler correctly used direct assignment.
+Fix: changed to `!= null` check so zero is correctly persisted. Behaviour is now
+consistent between POST (client creation) and PATCH (agreement update).
+
+### Audit Findings — No Fix Required
+
+- SQL injection (all endpoints) — Supabase ORM parameterised queries; payloads stored
+  as literals, never executed ✅
+- XSS in text fields rendered by React JSX — auto-escaped; cannot execute ✅
+- `javascript:` URI in doc URL fields (`/api/client/docs`) — existing protocol guard ✅
+- Enum fields (`status`, `agreement_model`, `category`) — all validate and return 400 ✅
+- `program_length_weeks` out-of-range (0, 261) — 400 returned correctly ✅
+- Missing required fields (`email`, `title`, `url`) — 400 returned correctly ✅
+- Session DELETE IDOR — 404 for non-owned sessions; RLS enforces ownership ✅
+- Field injection (sending `pt_id`/`client_id` in PATCH bodies) — field whitelists
+  correctly strip unrecognised keys across all PATCH handlers ✅
+- Programme assignment with invalid `startDate` — existing `isNaN` guard returns 400 ✅
+- Auth on all endpoints — 401/403 returned for unauthenticated/wrong-role callers ✅
+
+### Validation Rules Reference (cumulative)
+
+| Field | Endpoint | Rule |
+|-------|----------|------|
+| `url` | POST /api/bug-reports | `http:` or `https:` only (relative paths permitted) |
+| `logo` (file) | POST /api/pt/logo | JPEG, PNG or WebP only (SVG removed) |
+| `total_weeks` | POST /api/programmes | Integer 1–52; NaN → 400 |
+| `manual_price_numeric` | POST /api/clients | `!= null` check; 0 stored correctly |
+| `program_length_weeks` | POST /api/clients, PATCH /api/agreements | Integer 1–260 or null |
+| `status` | PATCH /api/agreements | `active` \| `attention` \| `paused` \| `inactive` |
+| `agreement_model` | POST /api/clients, PATCH /api/agreements | `subscription` \| `fixed_block` \| `hybrid` |
+| `category` | POST /api/exercises | `healing` \| `forging` \| `verse` |
+| `*_storage_url` | PATCH /api/client/docs | `http:` or `https:` only |
+
+---
+
 ## 2026-06-02 (Run 2) — Auth Layer Audit: Public Endpoint Security
 
 ### Security Fixes

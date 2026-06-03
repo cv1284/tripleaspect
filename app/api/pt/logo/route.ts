@@ -4,7 +4,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 
 const BUCKET        = 'pt-logos';
 const MAX_BYTES     = 2 * 1024 * 1024; // 2 MB
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'];
+// SVG excluded: SVGs can embed <script> tags which execute if the storage URL is opened directly
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 // POST /api/pt/logo — uploads brand logo, saves to profiles.logo_url
 export async function POST(req: NextRequest) {
@@ -17,13 +18,13 @@ export async function POST(req: NextRequest) {
 
   if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 });
   if (!ALLOWED_TYPES.includes(file.type)) {
-    return NextResponse.json({ error: 'Only JPEG, PNG, WebP or SVG files are accepted.' }, { status: 400 });
+    return NextResponse.json({ error: 'Only JPEG, PNG or WebP files are accepted.' }, { status: 400 });
   }
   if (file.size > MAX_BYTES) {
     return NextResponse.json({ error: 'File must be under 2 MB.' }, { status: 400 });
   }
 
-  const ext    = file.type === 'image/svg+xml' ? 'svg' : file.type.split('/')[1];
+  const ext    = file.type.split('/')[1];
   const path   = `${user.id}/logo.${ext}`;
   const buffer = Buffer.from(await file.arrayBuffer());
 
@@ -54,7 +55,7 @@ export async function DELETE(_req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const admin = createAdminClient();
-  for (const ext of ['png', 'jpg', 'jpeg', 'webp', 'svg']) {
+  for (const ext of ['png', 'jpg', 'jpeg', 'webp']) {
     await admin.storage.from(BUCKET).remove([`${user.id}/logo.${ext}`]);
   }
 

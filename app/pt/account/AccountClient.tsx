@@ -286,13 +286,13 @@ export default function AccountClient({
         </div>
         <ImageUpload
           label="Logo / Brand Mark"
-          hint="PNG, JPG, WebP or SVG · max 2 MB · square or landscape works best"
+          hint="PNG, JPG or WebP · max 2 MB · square or landscape works best"
           current={currentLogo}
           uploading={logoUploading}
           saved={logoSaved}
           error={logoError}
           shape="rounded"
-          accept="image/jpeg,image/png,image/webp,image/svg+xml"
+          accept="image/jpeg,image/png,image/webp"
           onFileChange={handleLogoChange}
           onRemove={handleLogoRemove}
         />

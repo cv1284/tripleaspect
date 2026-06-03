@@ -28,7 +28,11 @@ export async function POST(req: NextRequest) {
   const { title, description, category, total_weeks, is_public } = await req.json();
   if (!title?.trim()) return NextResponse.json({ error: 'Title is required' }, { status: 400 });
 
-  const weeks = Math.min(Math.max(parseInt(total_weeks ?? '4'), 1), 52);
+  const parsedWeeks = parseInt(total_weeks ?? '4');
+  if (isNaN(parsedWeeks)) {
+    return NextResponse.json({ error: 'total_weeks must be a number' }, { status: 400 });
+  }
+  const weeks = Math.min(Math.max(parsedWeeks, 1), 52);
 
   const { data: programme, error: progErr } = await supabase
     .from('programmes')
