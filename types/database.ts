@@ -244,6 +244,18 @@ export function bugRefLabel(r: Pick<BugReport, 'ref' | 'report_type'>): string {
   return r.report_type === 'bug' ? `BUG-${r.ref}` : `REQ-${r.ref}`;
 }
 
+// ─── Progress Photos ──────────────────────────────────────
+
+export interface ProgressPhoto {
+  id:           string;
+  client_id:    string;
+  storage_path: string;
+  public_url:   string;
+  notes:        string | null;
+  taken_at:     string;   // date YYYY-MM-DD
+  created_at:   string;
+}
+
 // ─── Programme Builder ─────────────────────────────────────
 
 export interface Programme {

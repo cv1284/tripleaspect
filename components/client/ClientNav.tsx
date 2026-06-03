@@ -23,6 +23,13 @@ const NAV_ITEMS = [
     exact: false,
   },
   {
+    id:    'photos',
+    label: 'Photos',
+    icon:  '▣',
+    href:  (id: string) => `/portal/${id}/photos`,
+    exact: false,
+  },
+  {
     id:    'billing',
     label: 'Billing',
     icon:  '◇',

@@ -1,5 +1,30 @@
 # Changelog
 
+## 2026-06-03 (2) — Phase 3: Progress Photos
+
+### New Feature
+
+Client progress photo tracking delivered as the Phase 3 sprint-1 feature.
+
+Clients can upload body composition photos through the portal, tag them with a date
+and optional note, view them in a 2-column grid grouped by month, and delete them.
+PTs can read their clients' photos via `GET /api/portal/photos?clientId=`.
+
+**Files added:**
+- `supabase/migrations/007_progress_photos.sql` — `progress_photos` table + RLS
+- `app/api/portal/photos/route.ts` — POST (upload) + GET (list)
+- `app/api/portal/photos/[id]/route.ts` — DELETE (client-only; also removes from Storage)
+- `app/portal/[clientId]/photos/page.tsx` — server page with initial data fetch
+- `app/portal/[clientId]/photos/PhotosClient.tsx` — upload form + photo grid
+
+**Files modified:**
+- `components/client/ClientNav.tsx` — added Photos (▣) tab between History and Billing
+- `types/database.ts` — added `ProgressPhoto` interface
+
+**Setup required:** Create a `progress-photos` public Storage bucket in Supabase Dashboard.
+
+---
+
 ## 2026-06-03 — Data Boundary, Robustness & Injection Resiliency Audit
 
 ### Security Fixes
