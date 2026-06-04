@@ -93,6 +93,15 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     payload.program_length_weeks = weeks;
   }
 
+  // Validate manual_price_numeric if provided
+  if ('manual_price_numeric' in payload && payload.manual_price_numeric !== null) {
+    const price = Number(payload.manual_price_numeric);
+    if (isNaN(price)) {
+      return NextResponse.json({ error: 'manual_price_numeric must be a valid number' }, { status: 400 });
+    }
+    payload.manual_price_numeric = price;
+  }
+
   const { data, error } = await supabase
     .from('client_agreements')
     .update(payload)
