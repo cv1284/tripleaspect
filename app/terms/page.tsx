@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { LegalLayout }  from '@/components/LegalLayout';
 
 export const metadata: Metadata = {
-  title: 'Terms of Service — brigid.pro',
+  title: 'Terms of Service - brigid.pro',
 };
 
 export default function TermsPage() {
@@ -32,7 +32,7 @@ export default function TermsPage() {
       <section className="space-y-3">
         <h2 className="text-base font-semibold text-slate-200">3. Not medical advice</h2>
         <p className="text-amber-400/90 font-medium">
-          The content on Brigid.pro — including exercises, programmes, metrics, and coaching notes —
+          The content on Brigid.pro - including exercises, programmes, metrics, and coaching notes -
           is provided for informational and coaching purposes only. It does not constitute medical
           advice, diagnosis, or treatment.
         </p>
@@ -54,7 +54,7 @@ export default function TermsPage() {
             'You must not share your account or allow others to access the Service on your behalf.',
           ].map(item => (
             <li key={item} className="flex gap-2">
-              <span className="text-indigo-400 mt-0.5 flex-shrink-0">–</span>
+              <span className="text-indigo-400 mt-0.5 flex-shrink-0">-</span>
               <span>{item}</span>
             </li>
           ))}
@@ -72,7 +72,7 @@ export default function TermsPage() {
             'Will obtain appropriate consent (PAR-Q, waiver, etc.) from clients before commencing coaching.',
           ].map(item => (
             <li key={item} className="flex gap-2">
-              <span className="text-indigo-400 mt-0.5 flex-shrink-0">–</span>
+              <span className="text-indigo-400 mt-0.5 flex-shrink-0">-</span>
               <span>{item}</span>
             </li>
           ))}
@@ -91,7 +91,7 @@ export default function TermsPage() {
             'Misrepresent your identity or qualifications.',
           ].map(item => (
             <li key={item} className="flex gap-2">
-              <span className="text-indigo-400 mt-0.5 flex-shrink-0">–</span>
+              <span className="text-indigo-400 mt-0.5 flex-shrink-0">-</span>
               <span>{item}</span>
             </li>
           ))}
@@ -129,7 +129,7 @@ export default function TermsPage() {
         <p>
           To the fullest extent permitted by law, Triple Aspect shall not be liable for any
           indirect, incidental, special, consequential, or punitive damages arising from your
-          use of — or inability to use — the Service, including any injury, loss of data, or
+          use of - or inability to use - the Service, including any injury, loss of data, or
           financial loss.
         </p>
         <p>

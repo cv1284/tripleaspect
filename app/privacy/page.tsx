@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { LegalLayout }  from '@/components/LegalLayout';
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy — brigid.pro',
+  title: 'Privacy Policy - brigid.pro',
 };
 
 export default function PrivacyPage() {
@@ -35,7 +35,7 @@ export default function PrivacyPage() {
             { label: 'Usage data', desc: 'Log data such as IP address, browser type, pages visited, and timestamps, collected automatically.' },
           ].map(({ label, desc }) => (
             <li key={label} className="flex gap-2">
-              <span className="text-indigo-400 mt-0.5 flex-shrink-0">–</span>
+              <span className="text-indigo-400 mt-0.5 flex-shrink-0">-</span>
               <span><span className="text-slate-300 font-medium">{label}:</span> {desc}</span>
             </li>
           ))}
@@ -54,7 +54,7 @@ export default function PrivacyPage() {
             'To comply with legal obligations.',
           ].map(item => (
             <li key={item} className="flex gap-2">
-              <span className="text-indigo-400 mt-0.5 flex-shrink-0">–</span>
+              <span className="text-indigo-400 mt-0.5 flex-shrink-0">-</span>
               <span>{item}</span>
             </li>
           ))}
@@ -72,7 +72,7 @@ export default function PrivacyPage() {
             { label: 'Stripe (future)', desc: 'Payment processing may be enabled in a future release. No card data is processed through us directly.' },
           ].map(({ label, desc }) => (
             <li key={label} className="flex gap-2">
-              <span className="text-indigo-400 mt-0.5 flex-shrink-0">–</span>
+              <span className="text-indigo-400 mt-0.5 flex-shrink-0">-</span>
               <span><span className="text-slate-300 font-medium">{label}:</span> {desc}</span>
             </li>
           ))}
@@ -103,7 +103,7 @@ export default function PrivacyPage() {
             'Data portability (receive a copy of your data in a machine-readable format).',
           ].map(item => (
             <li key={item} className="flex gap-2">
-              <span className="text-indigo-400 mt-0.5 flex-shrink-0">–</span>
+              <span className="text-indigo-400 mt-0.5 flex-shrink-0">-</span>
               <span>{item}</span>
             </li>
           ))}

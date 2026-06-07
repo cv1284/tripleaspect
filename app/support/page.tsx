@@ -2,20 +2,20 @@ import type { Metadata } from 'next';
 import { LegalLayout }  from '@/components/LegalLayout';
 
 export const metadata: Metadata = {
-  title: 'Support — brigid.pro',
+  title: 'Support - brigid.pro',
 };
 
 const FAQ: { q: string; a: string }[] = [
   {
     q: 'I was invited but the link has expired. What do I do?',
-    a: 'Ask your coach to resend your invite. They can do this from your profile in their dashboard — there is a "Resend invite" option on your client card.',
+    a: 'Ask your coach to resend your invite. They can do this from your profile in their dashboard - there is a "Resend invite" option on your client card.',
   },
   {
     q: 'How do I complete a session?',
     a: 'Open the session from your portal home page, review each exercise, and tap the "Mark complete" button at the bottom. Your coach will be notified.',
   },
   {
-    q: 'I cannot see my session — where has it gone?',
+    q: 'I cannot see my session - where has it gone?',
     a: 'Sessions are shown in chronological order. Check the History tab in your portal for past sessions. If a session is missing entirely, contact your coach to confirm it was assigned to you.',
   },
   {
@@ -28,10 +28,10 @@ const FAQ: { q: string; a: string }[] = [
   },
   {
     q: 'How do I sign documents (PAR-Q, waiver, consent)?',
-    a: 'Your coach will share links to the required documents. Once signed, let your coach know — they will mark them as complete on their end.',
+    a: 'Your coach will share links to the required documents. Once signed, let your coach know - they will mark them as complete on their end.',
   },
   {
-    q: 'I am a coach — how do I add a new client?',
+    q: 'I am a coach - how do I add a new client?',
     a: 'From your dashboard, go to Clients and click "Add client". Enter their name and email address and send an invitation. They will receive an email to set up their account.',
   },
   {
