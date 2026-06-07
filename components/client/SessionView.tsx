@@ -5,6 +5,7 @@ import { Session, ClientAgreement, Profile } from '@/types/database';
 import { CATEGORY_CONFIG } from '@/lib/utils';
 import PortalBanners from './PortalBanners';
 import ExerciseCard from './ExerciseCard';
+import WellbeingCheckin from './WellbeingCheckin';
 import { format, parseISO } from 'date-fns';
 
 interface Props {
@@ -159,7 +160,8 @@ function NoSessionToday({ clientName }: { clientName: string | null }) {
 // ─── Main Portal View ─────────────────────────────────────
 
 export default function SessionView({ session, agreement, client, ptEmail }: Props) {
-  const [completed, setCompleted] = useState(!!session.completed_at);
+  const [completed,       setCompleted]       = useState(!!session.completed_at);
+  const [checkinComplete, setCheckinComplete] = useState(false);
   const items = session.session_items ?? [];
 
   if (!session) {
@@ -185,6 +187,14 @@ export default function SessionView({ session, agreement, client, ptEmail }: Pro
 
         {/* Priority banners */}
         <PortalBanners agreement={agreement} ptEmail={ptEmail} />
+
+        {/* Pre-session wellbeing check-in — shown only on incomplete sessions */}
+        {!completed && !checkinComplete && (
+          <WellbeingCheckin
+            sessionId={session.id}
+            onComplete={() => setCheckinComplete(true)}
+          />
+        )}
 
         {/* Session header */}
         <SessionHeader session={session} />

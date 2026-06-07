@@ -1,0 +1,87 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+
+export interface WeekAdherence {
+  week_start:  string;   // ISO date of Monday
+  scheduled:   number;
+  completed:   number;
+  rate:        number;   // 0–1
+}
+
+// GET /api/pt/adherence?clientId=<uuid>&weeks=<n>
+// Returns per-week scheduled vs completed session counts.
+// PT-only endpoint.
+export async function GET(req: NextRequest) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { data: profile } = await supabase
+    .from('profiles').select('role').eq('id', user.id).single();
+  if (profile?.role !== 'pt') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  const clientId = req.nextUrl.searchParams.get('clientId');
+  if (!clientId) return NextResponse.json({ error: 'clientId required' }, { status: 400 });
+
+  const weeks = Math.min(Math.max(parseInt(req.nextUrl.searchParams.get('weeks') ?? '12'), 1), 52);
+
+  // Confirm PT has this client
+  const { data: agreement } = await supabase
+    .from('client_agreements').select('id, start_date')
+    .eq('pt_id', user.id).eq('client_id', clientId).maybeSingle();
+  if (!agreement) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
+  // Compute the Monday `weeks` weeks ago
+  const now    = new Date();
+  const monday = new Date(now);
+  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7)); // this Monday
+  monday.setHours(0, 0, 0, 0);
+  const rangeStart = new Date(monday);
+  rangeStart.setDate(rangeStart.getDate() - (weeks - 1) * 7);
+  const rangeStartStr = rangeStart.toISOString().split('T')[0];
+
+  const { data: sessions, error } = await supabase
+    .from('sessions')
+    .select('scheduled_date, completed_at')
+    .eq('client_id', clientId)
+    .eq('pt_id', user.id)
+    .gte('scheduled_date', rangeStartStr)
+    .not('scheduled_date', 'is', null);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Group into ISO weeks (Monday-anchored)
+  const weekMap = new Map<string, { scheduled: number; completed: number }>();
+
+  for (let i = 0; i < weeks; i++) {
+    const d = new Date(rangeStart);
+    d.setDate(d.getDate() + i * 7);
+    weekMap.set(d.toISOString().split('T')[0], { scheduled: 0, completed: 0 });
+  }
+
+  for (const s of sessions ?? []) {
+    if (!s.scheduled_date) continue;
+    const d       = new Date(s.scheduled_date + 'T00:00:00Z');
+    const dayOfWk = (d.getUTCDay() + 6) % 7; // 0=Mon
+    const mon     = new Date(d);
+    mon.setUTCDate(mon.getUTCDate() - dayOfWk);
+    const weekKey = mon.toISOString().split('T')[0];
+    const bucket  = weekMap.get(weekKey);
+    if (!bucket) continue;
+    bucket.scheduled++;
+    if (s.completed_at) bucket.completed++;
+  }
+
+  const result: WeekAdherence[] = Array.from(weekMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([week_start, { scheduled, completed }]) => ({
+      week_start,
+      scheduled,
+      completed,
+      rate: scheduled > 0 ? completed / scheduled : 0,
+    }));
+
+  return NextResponse.json(result);
+}

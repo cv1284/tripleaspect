@@ -244,6 +244,19 @@ export function bugRefLabel(r: Pick<BugReport, 'ref' | 'report_type'>): string {
   return r.report_type === 'bug' ? `BUG-${r.ref}` : `REQ-${r.ref}`;
 }
 
+// ─── Wellbeing Check-ins ──────────────────────────────────
+
+export interface WellbeingCheckin {
+  id:         string;
+  client_id:  string;
+  session_id: string | null;
+  sleep:      number;   // 1–5
+  stress:     number;   // 1–5
+  soreness:   number;   // 1–5
+  notes:      string | null;
+  created_at: string;
+}
+
 // ─── Progress Photos ──────────────────────────────────────
 
 export interface ProgressPhoto {
