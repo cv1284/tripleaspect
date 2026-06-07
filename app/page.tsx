@@ -245,9 +245,11 @@ function LandingPage() {
             </span>
             <span className="text-slate-600 text-sm font-mono">tripleaspect.fit</span>
           </div>
-          <p className="text-xs font-mono text-slate-700">
-            Healing · Forging · Verse
-          </p>
+          <div className="flex items-center gap-6 text-xs font-mono text-slate-600">
+            <Link href="/privacy" className="hover:text-slate-400 transition-colors">Privacy</Link>
+            <Link href="/terms"   className="hover:text-slate-400 transition-colors">Terms</Link>
+            <Link href="/support" className="hover:text-slate-400 transition-colors">Support</Link>
+          </div>
         </div>
       </footer>
 
