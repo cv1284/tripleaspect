@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getOrCreateCustomer, createSubscription, createPaymentIntent } from '@/lib/stripe';
+import { isValidEmail } from '@/lib/utils';
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -21,6 +22,7 @@ export async function POST(req: NextRequest) {
   } = await req.json();
 
   if (!email) return NextResponse.json({ error: 'Email is required' }, { status: 400 });
+  if (!isValidEmail(email)) return NextResponse.json({ error: 'Please enter a valid email address.' }, { status: 400 });
 
   const validModels = ['subscription', 'fixed_block', 'hybrid'];
   if (agreement_model && !validModels.includes(agreement_model)) {

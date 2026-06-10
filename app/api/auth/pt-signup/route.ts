@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { isValidEmail } from '@/lib/utils';
 
 export async function POST(req: NextRequest) {
   const { full_name, email, password, cf_token } = await req.json();
 
   if (!email || !password) {
     return NextResponse.json({ error: 'Email and password are required.' }, { status: 400 });
+  }
+  if (!isValidEmail(email)) {
+    return NextResponse.json({ error: 'Please enter a valid email address.' }, { status: 400 });
   }
   if (typeof password !== 'string' || password.trim().length < 8) {
     return NextResponse.json({ error: 'Password must be at least 8 non-whitespace characters.' }, { status: 400 });

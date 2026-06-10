@@ -120,6 +120,16 @@ export function formatMetricsSummary(metrics: Record<string, unknown>, category:
   return '—';
 }
 
+// ─── Email Validation ─────────────────────────────────────
+// Basic format check before handing the value to Supabase Auth. Rejects
+// values that would otherwise reach the auth provider's API and come back
+// as an opaque/non-JSON error (e.g. SQL-meta-character payloads tripping
+// an upstream WAF).
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export function isValidEmail(email: unknown): email is string {
+  return typeof email === 'string' && email.length <= 254 && EMAIL_RE.test(email);
+}
+
 // ─── HTML Escaping ────────────────────────────────────────
 // Use whenever interpolating user data into an HTML string (e.g. email templates).
 export function escapeHtml(str: string | null | undefined): string {

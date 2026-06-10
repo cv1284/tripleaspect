@@ -4,6 +4,37 @@ All notable changes to brigid.pro are documented here.
 
 ## [Unreleased]
 
+### Security Fixes (2026-06-10 — Automated Audit — Scenario A: 1 Bug Found)
+
+- **BUG-31 (LOW, RESOLVED)**: `POST /api/auth/pt-signup` and `POST /api/clients` — malformed/SQL-meta-character email addresses returned a raw, non-JSON-parse error message instead of a clean validation error.
+  - **Root cause**: Neither route validated email format before calling Supabase Auth (`admin.auth.admin.createUser` / `inviteUserByEmail`). An email containing SQL-injection-style syntax (e.g. `x'; DROP TABLE users; --@example.com`) was passed straight through to the Supabase Auth API, whose upstream edge returned an HTML error page for that request. supabase-js then threw a `JSON.parse` error ("Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON"), which the route surfaced verbatim as the `error` field with a 400 status.
+  - **Impact**: No injection succeeded (Supabase queries remain parameterized) and no 500/crash occurred, but the response leaked an internal exception message instead of a user-friendly validation error — fails the Suite C requirement for an "explicit, user-friendly validation error state."
+  - **Fix**: Added a shared `isValidEmail()` helper (`lib/utils.ts`) — basic `local@domain.tld` format + 254-char length check — and applied it before any Supabase Auth call in both routes. Malformed emails are now rejected locally with `{ "error": "Please enter a valid email address." }` (400) before ever reaching Supabase.
+  - **Test payloads confirmed blocked**: `{ email: "x'; DROP TABLE users; --@example.com" }` → 400 clean message (was: leaked `Unexpected token '<'...` JSON-parse error). `{ email: "not-an-email" }` → 400 (unchanged). `{ email: "x<script>alert(1)</script>@example.com" }` → 400 (unchanged, already caught by Supabase's own format check, now caught locally too).
+  - **Files**: `lib/utils.ts`, `app/api/auth/pt-signup/route.ts`, `app/api/clients/route.ts`
+  - **Checked, no fix needed**: `app/api/auth/resend-invite/route.ts` — looks up the email in `profiles` first (parameterized `eq()`) and returns early for unknown emails before ever calling `inviteUserByEmail`, so it never reaches the Supabase Auth API with an unvalidated value.
+
+### Audit Results (2026-06-10)
+
+**Data Boundary, Robustness & Injection Resiliency Audit** — Live testing of the auth/signup and client-invite entry points (the two unauthenticated POST endpoints), plus code-level inspection of previously-unaudited API routes (exercises, sessions, progress photos, wellbeing check-ins, GDPR delete, admin set-role, inactivity-response token flow).
+
+- **Suite A (Happy Path)**: `POST /api/auth/pt-signup` with valid name/email/password → 201 ✓
+- **Suite B (Fringe)**: 1200-char `full_name` (over 255-char limit) → 400 with clear message ✓. Numeric/`<script>`-tag `full_name` values are accepted and stored as-is, but rendered through React JSX (auto-escaping) — consistent with prior audits' SAFE finding for stored XSS.
+- **Suite C (Invalid/Injection)**: 1 failure — BUG-31 above (resolved). All other tested vectors (missing password, non-email string, `<script>` in email, `OR 1=1` in email) returned clean 400s.
+
+**Other routes reviewed (code-level), no new issues**:
+- `POST /api/exercises`: category/name validation solid; `tags` and non-array inputs handled without crashing.
+- `POST /api/portal/photos`: MIME/size/date validation solid; storage row rolled back on DB insert failure.
+- `POST /api/portal/checkin`: integer 1-5 range enforced via `Number()` + `Number.isInteger()`; rejects non-numeric and out-of-range values.
+- `DELETE /api/sessions/[id]`, `DELETE /api/clients/[id]/gdpr-delete`, `POST /api/admin/set-role`: ownership/role checks present and correctly scoped.
+- `GET /api/inactivity-response`: signed-token verification gates both `keep`/`delete` actions; invalid/expired tokens return a friendly HTML page, not an error dump.
+
+**Scenario**: A — 1 bug found and resolved. Given fewer than 3 defects were found and no open backlog items exist, no new feature was shipped tonight; recommend the next run pull from the feature backlog (Scenario B).
+
+**Notion sync**: Not applicable — the only Notion integration in this codebase is the monthly `cron/archive-bug-reports` job (archives resolved bug reports >90 days old). There is no live defect/feature backlog database in Notion to sync against.
+
+---
+
 ### Security Fixes (2026-06-09 — Automated Audit — Scenario A: 3 Bugs Found)
 
 - **BUG-28 (HIGH, RESOLVED)**: `POST /api/templates` — Missing category validation causes 500 or silent data pollution.
