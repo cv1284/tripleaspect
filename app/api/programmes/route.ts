@@ -28,6 +28,11 @@ export async function POST(req: NextRequest) {
   const { title, description, category, total_weeks, is_public } = await req.json();
   if (!title?.trim()) return NextResponse.json({ error: 'Title is required' }, { status: 400 });
 
+  const validCategories = ['healing', 'forging', 'verse'];
+  if (category && !validCategories.includes(category)) {
+    return NextResponse.json({ error: 'Invalid category. Must be one of: healing, forging, verse' }, { status: 400 });
+  }
+
   const parsedWeeks = parseInt(total_weeks ?? '4');
   if (isNaN(parsedWeeks)) {
     return NextResponse.json({ error: 'total_weeks must be a number' }, { status: 400 });

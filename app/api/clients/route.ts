@@ -32,6 +32,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'program_length_weeks must be between 1 and 260' }, { status: 400 });
   }
 
+  if (manual_price_numeric != null) {
+    const price = Number(manual_price_numeric);
+    if (isNaN(price) || !isFinite(price) || price < 0 || price > 1_000_000) {
+      return NextResponse.json({ error: 'manual_price_numeric must be a number between 0 and 1,000,000' }, { status: 400 });
+    }
+  }
+
   const admin    = createAdminClient();
   const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
   let   clientId = '';

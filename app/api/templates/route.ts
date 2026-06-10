@@ -62,8 +62,14 @@ export async function POST(req: NextRequest) {
     }>;
   };
 
+  const validCategories = ['healing', 'forging', 'verse'];
   if (!title?.trim()) return NextResponse.json({ error: 'Title required' }, { status: 400 });
-  if (!items?.length) return NextResponse.json({ error: 'At least one exercise required' }, { status: 400 });
+  if (!category || !validCategories.includes(category)) {
+    return NextResponse.json({ error: 'category must be one of: healing, forging, verse' }, { status: 400 });
+  }
+  if (!Array.isArray(items) || items.length === 0) {
+    return NextResponse.json({ error: 'At least one exercise required' }, { status: 400 });
+  }
 
   const { data: template, error: tmplErr } = await supabase
     .from('session_templates')

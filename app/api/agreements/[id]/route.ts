@@ -96,10 +96,28 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   // Validate manual_price_numeric if provided
   if ('manual_price_numeric' in payload && payload.manual_price_numeric !== null) {
     const price = Number(payload.manual_price_numeric);
-    if (isNaN(price)) {
-      return NextResponse.json({ error: 'manual_price_numeric must be a valid number' }, { status: 400 });
+    if (isNaN(price) || !isFinite(price) || price < 0 || price > 1_000_000) {
+      return NextResponse.json({ error: 'manual_price_numeric must be a number between 0 and 1,000,000' }, { status: 400 });
     }
     payload.manual_price_numeric = price;
+  }
+
+  // Validate doc storage URLs — only http/https accepted to prevent javascript:/data: XSS
+  const docUrlFields = ['parq_storage_url', 'waiver_storage_url', 'consent_storage_url'] as const;
+  for (const field of docUrlFields) {
+    if (field in payload && payload[field] !== null) {
+      const val = payload[field] as string;
+      if (typeof val === 'string' && val) {
+        try {
+          const { protocol } = new URL(val);
+          if (protocol !== 'http:' && protocol !== 'https:') {
+            return NextResponse.json({ error: `${field}: only http/https URLs are accepted` }, { status: 400 });
+          }
+        } catch {
+          return NextResponse.json({ error: `${field}: must be a valid URL` }, { status: 400 });
+        }
+      }
+    }
   }
 
   const { data, error } = await supabase

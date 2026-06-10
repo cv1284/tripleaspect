@@ -56,6 +56,20 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     if (key in body) patch[key] = body[key];
   }
 
+  if (Object.keys(patch).length === 0) {
+    return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
+  }
+
+  if ('title' in patch && (typeof patch.title !== 'string' || !(patch.title as string).trim())) {
+    return NextResponse.json({ error: 'Title cannot be empty' }, { status: 400 });
+  }
+  if ('title' in patch) patch.title = (patch.title as string).trim();
+
+  const validCategories = ['healing', 'forging', 'verse'];
+  if ('category' in patch && patch.category && !validCategories.includes(patch.category as string)) {
+    return NextResponse.json({ error: 'Invalid category. Must be one of: healing, forging, verse' }, { status: 400 });
+  }
+
   const { data, error } = await supabase
     .from('programmes')
     .update(patch)

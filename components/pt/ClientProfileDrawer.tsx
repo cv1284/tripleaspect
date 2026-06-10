@@ -7,7 +7,6 @@ import {
   OnboardingDocKey, getOnboardingDocs,
 } from '@/types/database';
 import { STATUS_CONFIG, getInitials, formatCurrency, deletionDaysRemaining, isDeletionOverdue } from '@/lib/utils';
-import { createClient } from '@/lib/supabase/client';
 import GdprRemoveModal from '@/components/pt/GdprRemoveModal';
 
 // ─── Types ────────────────────────────────────────────────
@@ -172,6 +171,13 @@ interface SessionRow {
   completed_at:   string | null;
 }
 
+interface WeekAdherence {
+  week_start: string;
+  scheduled:  number;
+  completed:  number;
+  rate:       number;
+}
+
 const CATEGORY_ICONS: Record<string, string> = {
   healing: '◈', forging: '⬡', verse: '◎',
 };
@@ -196,6 +202,8 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
   const [confirmSchedule,  setConfirmSchedule]  = useState(false);
   const [scheduling,       setScheduling]       = useState(false);
   const [scheduleReason,   setScheduleReason]   = useState('');
+  const [adherence,        setAdherence]        = useState<WeekAdherence[]>([]);
+  const [adherenceLoading, setAdherenceLoading] = useState(false);
 
   // Sync form when client changes
   useEffect(() => {
@@ -205,6 +213,7 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
       setError(null);
       setSuccess(false);
       setSessions([]);
+      setAdherence([]);
     }
   }, [client]);
 
@@ -214,6 +223,22 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
       fetchSessions();
     }
   }, [tab, client]);
+
+  // Fetch adherence when overview tab opens
+  useEffect(() => {
+    if (tab === 'overview' && client && adherence.length === 0 && !adherenceLoading) {
+      fetchAdherence();
+    }
+  }, [tab, client]);
+
+  async function fetchAdherence() {
+    if (!client) return;
+    setAdherenceLoading(true);
+    const res = await fetch(`/api/pt/adherence?clientId=${client.id}&weeks=8`);
+    const data: WeekAdherence[] = res.ok ? await res.json() : [];
+    setAdherence(data);
+    setAdherenceLoading(false);
+  }
 
   async function fetchSessions() {
     if (!client) return;
@@ -324,7 +349,6 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
     setSaving(true);
     setError(null);
 
-    const supabase = createClient();
     const payload = {
       status:               form.status,
       agreement_model:      form.agreement_model,
@@ -342,21 +366,27 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
       consent_storage_url:  form.consent_storage_url || null,
     };
 
-    const { error: err } = await supabase
-      .from('client_agreements')
-      .update(payload)
-      .eq('id', client.agreement.id);
+    const res = await fetch(`/api/agreements/${client.agreement.id}`, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload),
+    });
 
     setSaving(false);
 
-    if (err) { setError(err.message); return; }
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setError(body.error ?? 'Failed to save');
+      return;
+    }
 
+    const updated = await res.json();
     setSuccess(true);
     setTimeout(() => setSuccess(false), 2000);
 
     onSaved({
       ...client,
-      agreement: { ...client.agreement, ...payload } as ClientRow['agreement'],
+      agreement: { ...client.agreement, ...updated } as ClientRow['agreement'],
     });
   }
 
@@ -517,6 +547,63 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
                 <p className="section-header">This Week</p>
                 <p className="text-2xl font-mono font-bold text-slate-200">{client.sessions_this_week}</p>
                 <p className="text-xs font-mono text-slate-600">sessions logged</p>
+              </div>
+
+              {/* 8-week adherence chart */}
+              <div className="p-4 rounded-lg bg-surface-2 border border-surface-border">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="section-header mb-0">8-Week Adherence</p>
+                  {adherence.length > 0 && (() => {
+                    const totalScheduled = adherence.reduce((s, w) => s + w.scheduled, 0);
+                    const totalCompleted = adherence.reduce((s, w) => s + w.completed, 0);
+                    const overallRate = totalScheduled > 0 ? Math.round((totalCompleted / totalScheduled) * 100) : null;
+                    return overallRate !== null ? (
+                      <span className={`text-sm font-mono font-semibold ${overallRate >= 80 ? 'text-emerald-400' : overallRate >= 50 ? 'text-amber-400' : 'text-slate-500'}`}>
+                        {overallRate}%
+                      </span>
+                    ) : null;
+                  })()}
+                </div>
+
+                {adherenceLoading && (
+                  <div className="flex justify-center py-4">
+                    <span className="w-4 h-4 border-2 border-slate-600 border-t-indigo-400 rounded-full animate-spin" />
+                  </div>
+                )}
+
+                {!adherenceLoading && adherence.length > 0 && (
+                  <div className="flex items-end gap-1 h-10">
+                    {adherence.map((w) => {
+                      const heightPct = w.scheduled === 0 ? 0 : Math.round((w.completed / w.scheduled) * 100);
+                      const weekLabel = new Date(w.week_start + 'T00:00:00Z')
+                        .toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+                      const barColor = w.scheduled === 0
+                        ? 'bg-surface-4'
+                        : heightPct >= 80 ? 'bg-emerald-500/70' : heightPct >= 50 ? 'bg-amber-500/70' : 'bg-red-500/50';
+                      return (
+                        <div key={w.week_start} className="flex-1 flex flex-col items-center gap-0.5 group relative">
+                          <div className="w-full bg-surface-4 rounded-sm overflow-hidden h-8 flex items-end">
+                            <div
+                              className={`w-full ${barColor} rounded-sm transition-all`}
+                              style={{ height: w.scheduled === 0 ? '4px' : `${Math.max(heightPct, 8)}%` }}
+                            />
+                          </div>
+                          {/* Tooltip on hover */}
+                          <div className="absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col items-center z-10 pointer-events-none">
+                            <div className="bg-surface-0 border border-surface-border rounded px-2 py-1 text-2xs font-mono text-slate-300 whitespace-nowrap shadow-lg">
+                              {weekLabel}: {w.completed}/{w.scheduled}
+                            </div>
+                            <div className="w-1.5 h-1.5 bg-surface-0 border-r border-b border-surface-border rotate-45 -mt-1" />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {!adherenceLoading && adherence.length === 0 && (
+                  <p className="text-xs font-mono text-slate-600 text-center py-3">No session data yet</p>
+                )}
               </div>
             </>
           )}

@@ -21,6 +21,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'No valid fields' }, { status: 400 });
   }
 
+  if ('title' in patch) {
+    if (typeof patch.title !== 'string' || !(patch.title as string).trim()) {
+      return NextResponse.json({ error: 'Title cannot be empty' }, { status: 400 });
+    }
+    patch.title = (patch.title as string).trim();
+  }
+
   const { data, error } = await supabase
     .from('session_templates')
     .update({ ...patch, updated_at: new Date().toISOString() })
