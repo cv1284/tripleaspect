@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getOrCreateCustomer, createSubscription, createPaymentIntent } from '@/lib/stripe';
-import { isValidEmail } from '@/lib/utils';
+import { isValidEmail, readJsonBody } from '@/lib/utils';
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -15,11 +15,17 @@ export async function POST(req: NextRequest) {
     .from('profiles').select('role, free_client_quota').eq('id', user.id).single();
   if (ptProfile?.role !== 'pt') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
+  const reqBody = await readJsonBody(req);
+  if (reqBody === null) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   const {
     full_name, email,
     agreement_model, start_date, renewal_date, program_length_weeks,
     manual_price_numeric, manual_currency,
-  } = await req.json();
+  } = reqBody as {
+    full_name?: any; email?: any;
+    agreement_model?: any; start_date?: any; renewal_date?: any; program_length_weeks?: any;
+    manual_price_numeric?: any; manual_currency?: any;
+  };
 
   if (!email) return NextResponse.json({ error: 'Email is required' }, { status: 400 });
   if (!isValidEmail(email)) return NextResponse.json({ error: 'Please enter a valid email address.' }, { status: 400 });

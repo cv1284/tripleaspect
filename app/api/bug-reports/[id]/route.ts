@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient }      from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { bugRefLabel }       from '@/types/database';
-import { escapeHtml }        from '@/lib/utils';
+import { escapeHtml, readJsonBody } from '@/lib/utils';
 
 interface Params { params: Promise<{ id: string }> }
 
@@ -16,7 +16,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const { resolved_note } = await req.json();
+  const body = await readJsonBody(req);
+  if (body === null) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  const { resolved_note } = body as { resolved_note?: any };
   const admin = createAdminClient();
 
   // Fetch the report first to guard against double-resolve + get reporter info

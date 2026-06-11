@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient }      from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { bugRefLabel }       from '@/types/database';
-import { escapeHtml }        from '@/lib/utils';
+import { escapeHtml, readJsonBody } from '@/lib/utils';
 
 // POST /api/bug-reports — any authenticated user
 export async function POST(req: NextRequest) {
@@ -10,7 +10,11 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { url, page_title, notes, report_type, screenshot_url } = await req.json();
+  const body = await readJsonBody(req);
+  if (body === null) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  const { url, page_title, notes, report_type, screenshot_url } = body as {
+    url?: unknown; page_title?: unknown; notes?: unknown; report_type?: unknown; screenshot_url?: unknown;
+  };
   if (!url) return NextResponse.json({ error: 'url is required' }, { status: 400 });
 
   // Reject non-http(s) URLs — prevents javascript: or data: URIs reaching the DB and email templates

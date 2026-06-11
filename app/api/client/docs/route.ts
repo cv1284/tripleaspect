@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { readJsonBody } from '@/lib/utils';
 
 /**
  * PATCH /api/client/docs
@@ -13,7 +14,8 @@ export async function PATCH(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const body = await req.json();
+  const body = await readJsonBody(req);
+  if (body === null) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
 
   // Only allow URL fields — never let the client flip the signed booleans
   const allowed = ['parq_storage_url', 'waiver_storage_url', 'consent_storage_url'] as const;

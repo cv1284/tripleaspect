@@ -4,6 +4,43 @@ All notable changes to brigid.pro are documented here.
 
 ## [Unreleased]
 
+### Security Fixes (2026-06-11 — Automated Audit — Scenario A: 1 Bug Found)
+
+- **BUG-32 (MEDIUM, RESOLVED)**: All 16 POST/PATCH API routes that read a JSON body (`await req.json()`) crashed with a raw, empty-bodied `500 Internal Server Error` on a malformed or empty request body, instead of returning a clean validation error.
+  - **Root cause**: `req.json()` throws a `SyntaxError` when the body is not valid JSON (including an empty body with `Content-Type: application/json`). None of the routes wrapped this call in a try/catch, so the exception propagated to Next.js's default route-error handler, which returns an empty `500` response with no JSON payload — failing the Suite C requirement for "an explicit, user-friendly validation error state."
+  - **Reproduction**: `POST /api/programmes` with body `{"title": "bad` (truncated/invalid JSON) or an empty body → `500` with empty response body (confirmed via live local testing with an authenticated PT session).
+  - **Fix**: Added a shared `readJsonBody<T>(req)` helper to `lib/utils.ts` that wraps `req.json()` in a try/catch and returns `null` on parse failure. Every affected route now does:
+    ```ts
+    const body = await readJsonBody(req);
+    if (body === null) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    ```
+  - **Test payloads confirmed blocked**: `{"title": "bad` (truncated JSON) → `400 {"error":"Invalid JSON body"}` (was: empty `500`). Empty body → same `400`. Non-JSON body (`not json at all`) → same `400`. Happy-path requests (valid JSON) unaffected.
+  - **Files**: `lib/utils.ts` (new `readJsonBody` helper) and all 16 routes that parse a JSON body: `app/api/admin/pts/[ptId]/route.ts`, `app/api/admin/set-role/route.ts`, `app/api/agreements/[id]/route.ts`, `app/api/auth/pt-signup/route.ts`, `app/api/auth/resend-invite/route.ts`, `app/api/bug-reports/route.ts`, `app/api/bug-reports/[id]/route.ts`, `app/api/client/docs/route.ts`, `app/api/clients/route.ts`, `app/api/exercises/route.ts`, `app/api/portal/checkin/route.ts`, `app/api/programmes/route.ts`, `app/api/programmes/[id]/route.ts`, `app/api/programmes/[id]/assign/route.ts`, `app/api/templates/route.ts`, `app/api/templates/[id]/route.ts`.
+
+### Audit Results (2026-06-11)
+
+**Data Boundary, Robustness & Injection Resiliency Audit** — Live testing of the previously-unaudited `programmes` API (create/list/assign) with an authenticated PT session, plus code-level inspection of remaining unaudited routes (`admin/pts/[ptId]`, `admin/delete-user/[id]`, `clients/[id]/export`, `clients/[id]/resend-invite`, `pt/avatar`, `pt/logo`, `webhooks/stripe`, `bug-reports`).
+
+- **Suite A (Happy Path)**: `POST /api/programmes` with valid title/category/total_weeks → 201 ✓. `GET /api/programmes` → 200 ✓.
+- **Suite B (Fringe)**: `total_weeks: 3.7` → truncated to 3 ✓ (intentional `parseInt` behavior). `total_weeks: -5` and `total_weeks: 99999999999999999999` → clamped to 1 and 52 respectively ✓. `is_public: "yes"` → Postgres coerces to boolean `true` (no error) — acceptable, but noted as a minor type-looseness (not fixed, low risk: only `is_public` on `programmes`/`templates`, boolean column, PT-only). 1200-char title and emoji/HTML/SQL-meta-character title (`Audit 🏋️ State Change! & % $ <b>Render</b> '; DROP TABLE users; --`) both stored verbatim and rendered safely via React auto-escaping, consistent with prior audits.
+- **Suite C (Invalid/Injection)**: 1 systemic failure — BUG-32 above (resolved). Missing `title` → clean 400 ✓. Invalid `category` → clean 400 ✓.
+
+**Other routes reviewed (code-level), no new issues**:
+- `PATCH /api/admin/pts/[ptId]`: admin-only, `free_client_quota` validated as non-negative number; integer column type mismatches (e.g. `3.5`) would 500 with a raw Postgres error, but this endpoint is admin-only (trusted input) — left as-is, consistent with the project's risk-acceptance for admin-only routes.
+- `GET`/`DELETE /api/admin/delete-user/[id]`: admin-only, self-deletion guarded, filenames sanitized via `.replace(/[^a-z0-9]/gi, '_')`.
+- `GET /api/clients/[id]/export`: ownership-gated via `client_agreements` join; filename sanitization present.
+- `POST /api/clients/[id]/resend-invite`: PT/agreement-gated before calling Supabase Auth.
+- `POST /api/pt/avatar`, `POST /api/pt/logo`: MIME-type allowlist (no SVG, preventing stored-XSS via SVG `<script>`), 5MB/2MB size caps enforced before upload.
+- `POST /api/webhooks/stripe`: Stripe signature verification (`constructEvent`) gates all event handling; invalid signatures return clean 400.
+
+**Scenario**: A — 1 bug found and resolved (systemic, affecting 16 routes). Given fewer than 3 defects were found, no new feature was shipped tonight. Existing open backlog item **FEAT-21** ("class booking system") remains for a future Scenario B run.
+
+**Database state**: 8 ephemeral test programmes created during live testing (titles prefixed `Audit `/`AAAA...`) were deleted via `scripts/audit-cleanup.ts`. No other test data was created.
+
+**Notion sync**: Not applicable — no live defect/feature backlog database in Notion (unchanged from 2026-06-10 finding).
+
+---
+
 ### Security Fixes (2026-06-10 — Automated Audit — Scenario A: 1 Bug Found)
 
 - **BUG-31 (LOW, RESOLVED)**: `POST /api/auth/pt-signup` and `POST /api/clients` — malformed/SQL-meta-character email addresses returned a raw, non-JSON-parse error message instead of a clean validation error.

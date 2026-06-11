@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { readJsonBody } from '@/lib/utils';
 
 // POST /api/portal/checkin — client submits a pre-session wellbeing check-in
 export async function POST(req: NextRequest) {
@@ -13,7 +14,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Only clients can submit check-ins' }, { status: 403 });
   }
 
-  const { sleep, stress, soreness, notes, session_id } = await req.json();
+  const body = await readJsonBody(req);
+  if (body === null) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  const { sleep, stress, soreness, notes, session_id } = body as {
+    sleep?: unknown; stress?: unknown; soreness?: unknown; notes?: unknown; session_id?: unknown;
+  };
 
   const scores = { sleep, stress, soreness };
   for (const [key, val] of Object.entries(scores)) {

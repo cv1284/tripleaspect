@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { readJsonBody } from '@/lib/utils';
 
 interface Params { params: Promise<{ id: string }> }
 
@@ -12,7 +13,9 @@ export async function POST(req: NextRequest, { params }: Params) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { clientId, startDate } = await req.json();
+  const body = await readJsonBody(req);
+  if (body === null) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  const { clientId, startDate } = body as { clientId?: any; startDate?: any };
   if (!clientId || !startDate) {
     return NextResponse.json({ error: 'clientId and startDate are required' }, { status: 400 });
   }

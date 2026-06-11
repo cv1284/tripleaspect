@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { readJsonBody } from '@/lib/utils';
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -11,7 +12,12 @@ export async function POST(req: NextRequest) {
     .from('profiles').select('role').eq('id', user.id).single();
   if (profile?.role !== 'pt') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const { name, category, description, coaching_cues, default_video_url, tags } = await req.json();
+  const body = await readJsonBody(req);
+  if (body === null) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  const { name, category, description, coaching_cues, default_video_url, tags } = body as {
+    name?: any; category?: any; description?: any;
+    coaching_cues?: any; default_video_url?: any; tags?: any;
+  };
 
   const validCategories = ['healing', 'forging', 'verse'];
   if (typeof name !== 'string' || !name.trim())              return NextResponse.json({ error: 'Name is required' }, { status: 400 });

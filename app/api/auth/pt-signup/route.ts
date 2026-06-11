@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { isValidEmail } from '@/lib/utils';
+import { isValidEmail, readJsonBody } from '@/lib/utils';
 
 export async function POST(req: NextRequest) {
-  const { full_name, email, password, cf_token } = await req.json();
+  const body = await readJsonBody(req);
+  if (body === null) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  const { full_name, email, password, cf_token } = body as {
+    full_name?: unknown; email?: unknown; password?: unknown; cf_token?: unknown;
+  };
 
   if (!email || !password) {
     return NextResponse.json({ error: 'Email and password are required.' }, { status: 400 });

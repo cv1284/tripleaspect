@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { readJsonBody } from '@/lib/utils';
 
 // GET /api/templates
 // Returns the PT's own templates + all public templates from other PTs.
@@ -47,7 +48,8 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
   if (profile?.role !== 'pt') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const body = await req.json();
+  const body = await readJsonBody(req);
+  if (body === null) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   const { title, category, notes, is_public, items } = body as {
     title:     string;
     category:  string;

@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { readJsonBody } from '@/lib/utils';
 
 export async function POST(req: NextRequest) {
-  const { email } = await req.json();
+  const body = await readJsonBody(req);
+  if (body === null) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  const { email } = body as { email?: any };
   if (!email) return NextResponse.json({ error: 'Email is required.' }, { status: 400 });
 
   const admin  = createAdminClient();

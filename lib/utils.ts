@@ -1,5 +1,19 @@
 import { differenceInDays, parseISO, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
+import { NextRequest } from 'next/server';
 import { AgreementStatus, ClientAgreement, SessionCategory } from '@/types/database';
+
+// ─── Request Body Parsing ──────────────────────────────────
+// `req.json()` throws a SyntaxError on malformed/empty bodies, which Next.js
+// surfaces as a raw, empty-bodied 500 instead of a clean validation error.
+// Routes should use this helper and return 400 "Invalid JSON body" when it
+// returns null.
+export async function readJsonBody<T = Record<string, unknown>>(req: NextRequest): Promise<T | null> {
+  try {
+    return await req.json() as T;
+  } catch {
+    return null;
+  }
+}
 
 // ─── Date Utilities ───────────────────────────────────────
 
