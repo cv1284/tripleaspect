@@ -24,6 +24,12 @@ export async function POST(req: NextRequest) {
   if (!category)                              return NextResponse.json({ error: 'Category is required' }, { status: 400 });
   if (!validCategories.includes(category))    return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
 
+  for (const [field, val] of Object.entries({ description, coaching_cues, default_video_url })) {
+    if (val !== undefined && val !== null && typeof val !== 'string') {
+      return NextResponse.json({ error: `${field} must be a string` }, { status: 400 });
+    }
+  }
+
   const parsedTags = typeof tags === 'string'
     ? tags.split(',').map((t: string) => t.trim()).filter(Boolean)
     : (tags ?? []);

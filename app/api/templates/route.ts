@@ -65,9 +65,12 @@ export async function POST(req: NextRequest) {
   };
 
   const validCategories = ['healing', 'forging', 'verse'];
-  if (!title?.trim()) return NextResponse.json({ error: 'Title required' }, { status: 400 });
+  if (typeof title !== 'string' || !title.trim()) return NextResponse.json({ error: 'Title required' }, { status: 400 });
   if (!category || !validCategories.includes(category)) {
     return NextResponse.json({ error: 'category must be one of: healing, forging, verse' }, { status: 400 });
+  }
+  if (notes !== undefined && notes !== null && typeof notes !== 'string') {
+    return NextResponse.json({ error: 'notes must be a string' }, { status: 400 });
   }
   if (!Array.isArray(items) || items.length === 0) {
     return NextResponse.json({ error: 'At least one exercise required' }, { status: 400 });

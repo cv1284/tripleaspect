@@ -4,6 +4,37 @@ All notable changes to brigid.pro are documented here.
 
 ## [Unreleased]
 
+### Security Fixes (2026-06-12 — Automated Audit — Scenario A: 1 Bug Found)
+
+- **BUG-33 (MEDIUM, RESOLVED)**: `POST /api/exercises`, `POST /api/programmes`, `POST /api/templates` — non-string JSON values for optional text fields (`description`, `coaching_cues`, `default_video_url` on exercises; `title` on programmes; `title`/`notes` on templates) crashed with a raw, empty-bodied `500 Internal Server Error`.
+  - **Root cause**: Optional chaining (`field?.trim()`) only short-circuits on `null`/`undefined`. A truthy non-string value (e.g. a number or boolean) still reaches `.trim()`, which doesn't exist on those types, throwing an uncaught `TypeError` ("X.trim is not a function") that propagates to Next.js's default route-error handler — same failure shape as BUG-32, but a type-mismatch trigger rather than a JSON-parse trigger.
+  - **Reproduction**: `POST /api/exercises` with `{"name":"x","category":"forging","description":12345}` → empty `500` (was). `{"coaching_cues":true}` → empty `500` (was). `POST /api/programmes` with `{"title":12345,"category":"forging"}` → empty `500` (was). `POST /api/templates` with `{"title":12345,...}` or `{"notes":999,...}` → empty `500` (was). All confirmed via live local testing with an authenticated PT session.
+  - **Fix**: `app/api/exercises/route.ts` — added a loop validating `description`/`coaching_cues`/`default_video_url` are `string | null | undefined` before calling `.trim()`, returning `400 {"error":"<field> must be a string"}`. `app/api/programmes/route.ts` and `app/api/templates/route.ts` — changed `!title?.trim()` to `typeof title !== 'string' || !title.trim()` (same pattern as the existing BUG-29 fix in `templates/[id]/route.ts`), and added a `typeof` guard for `notes` in templates.
+  - **Test payloads confirmed blocked**: all six payloads above now return clean `400`s with field-specific messages. Happy-path requests (string/omitted fields) unaffected — confirmed `POST /api/exercises` with a normal string `description` still returns `201`.
+  - **Files**: `app/api/exercises/route.ts`, `app/api/programmes/route.ts`, `app/api/templates/route.ts`
+
+### Audit Results (2026-06-12)
+
+**Data Boundary, Robustness & Injection Resiliency Audit** — Live testing (authenticated PT session) of the previously-unaudited `sessions`/`sessions/[id]`/`sessions/[id]/duplicate`/`sessions/[id]/complete`, `programmes/[id]/assign`, `client/docs`, `portal/photos/[id]`, `bug-reports`, and `exercises` routes, plus a codebase-wide grep for the `?.trim()` pattern responsible for BUG-32/BUG-9-style crashes.
+
+- **Suite A (Happy Path)**: `POST /api/exercises` with valid string fields → 201 ✓.
+- **Suite B (Fringe)**: `POST /api/programmes/[id]/assign` with `startDate` at epoch/century boundaries and SQL-meta-character strings → clean 400 ("startDate must be a valid ISO date") ✓. Non-existent `programmeId`/`clientId` → clean 404 ✓.
+- **Suite C (Invalid/Injection)**: 1 systemic failure — BUG-33 above (resolved, 3 files). All other tested vectors (non-UUID `clientId`, missing fields, SQL-meta-character `startDate`) returned clean 400/404s.
+
+**Other routes reviewed (code-level), no new issues**:
+- `GET /api/sessions`, `DELETE /api/sessions/[id]`, `POST /api/sessions/[id]/duplicate`, `POST /api/sessions/[id]/complete`: ownership/agreement checks present; PT-alert email uses `escapeHtml()` on all interpolated fields.
+- `PATCH /api/client/docs`: field whitelist + http/https protocol guard on doc URLs, consistent with BUG-20 fix.
+- `DELETE /api/portal/photos/[id]`: ownership-gated, storage object removed before DB row.
+- `POST /api/bug-reports`: URL protocol guard; `escapeHtml()` on all admin-alert email fields.
+
+**Database state**: 1 ephemeral exercise (`Audit Happy Exercise`) created during live testing was deleted via `scripts/audit-cleanup-2026-06-12.ts`. BUG-33 report (tracker ref #30, filed via `POST /api/bug-reports`) marked resolved via the same script.
+
+**Notion sync**: Not applicable — no live defect/feature backlog database in Notion (unchanged from prior runs).
+
+**Scenario**: A — 1 bug found and resolved. Given fewer than 3 defects were found, no new feature was shipped tonight (consistent with 2026-06-10/06-11 precedent). Existing open backlog item **FEAT-21** ("class booking system") remains for a future Scenario B run.
+
+---
+
 ### Security Fixes (2026-06-11 — Automated Audit — Scenario A: 1 Bug Found)
 
 - **BUG-32 (MEDIUM, RESOLVED)**: All 16 POST/PATCH API routes that read a JSON body (`await req.json()`) crashed with a raw, empty-bodied `500 Internal Server Error` on a malformed or empty request body, instead of returning a clean validation error.

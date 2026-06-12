@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   const { title, description, category, total_weeks, is_public } = body as {
     title?: any; description?: any; category?: any; total_weeks?: any; is_public?: any;
   };
-  if (!title?.trim()) return NextResponse.json({ error: 'Title is required' }, { status: 400 });
+  if (typeof title !== 'string' || !title.trim()) return NextResponse.json({ error: 'Title is required' }, { status: 400 });
 
   const validCategories = ['healing', 'forging', 'verse'];
   if (category && !validCategories.includes(category)) {
