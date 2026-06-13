@@ -15,6 +15,17 @@ export async function readJsonBody<T = Record<string, unknown>>(req: NextRequest
   }
 }
 
+// ─── ID Validation ─────────────────────────────────────────
+// A malformed UUID passed to `.eq('id', id)` causes Postgres to throw
+// "invalid input syntax for type uuid", which several routes surfaced
+// verbatim as a raw error message (with 404/500 status) instead of a
+// clean validation error. Routes should check this before querying.
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isValidUuid(id: string): boolean {
+  return UUID_REGEX.test(id);
+}
+
 // ─── Date Utilities ───────────────────────────────────────
 
 export function daysUntilRenewal(renewalDate: string | null): number | null {

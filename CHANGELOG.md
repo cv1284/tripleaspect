@@ -4,6 +4,36 @@ All notable changes to brigid.pro are documented here.
 
 ## [Unreleased]
 
+### Security Fixes (2026-06-13 — Automated Audit — Scenario A: 1 Bug Found)
+
+- **BUG-34 (LOW, RESOLVED)**: `GET`/`PATCH`/`DELETE /api/agreements/[id]`, `GET`/`PATCH`/`DELETE /api/programmes/[id]`, and `PATCH /api/templates/[id]` leaked raw Postgrest exception strings instead of clean validation errors when the `[id]` path segment was not a valid UUID, or (for the two `GET` routes) when it was a well-formed UUID that didn't exist / belonged to another PT.
+  - **Root cause**: `.eq('id', id)` against a `uuid` column throws Postgres error `22P02` ("invalid input syntax for type uuid: \"...\"") when `id` isn't UUID-shaped, before any ownership/`maybeSingle()` check runs. Routes that did `if (error) return NextResponse.json({ error: error.message }, ...)` surfaced this raw string verbatim. Separately, `.single()` throws `PGRST116` ("Cannot coerce the result to a single JSON object") when zero/multiple rows match, which the two `GET` handlers also passed through as `error.message`.
+  - **Reproduction**: `GET /api/agreements/not-a-uuid` → `404 {"error":"invalid input syntax for type uuid: \"not-a-uuid\""}` (was). `PATCH /api/programmes/not-a-uuid` and `DELETE /api/programmes/not-a-uuid` → `500` with the same raw message (was). `PATCH /api/templates/not-a-uuid` → `500` with the same raw message (was). `GET /api/agreements/00000000-0000-0000-0000-000000000000` (valid UUID, no matching row) → `404 {"error":"Cannot coerce the result to a single JSON object"}` (was). All confirmed via live local testing with an authenticated PT session.
+  - **Fix**: Added a shared `isValidUuid()` helper (`lib/utils.ts`, simple UUID-shape regex). All six affected handlers now check `isValidUuid(id)` immediately after the auth check and return a clean `404 {"error":"<Resource> not found"}` before any query runs. Also replaced the leaked `PGRST116` message on `GET /api/agreements/[id]` and `GET /api/programmes/[id]` with the same clean `"<Resource> not found"` 404.
+  - **Test payloads confirmed blocked**: `not-a-uuid` and `00000000-0000-0000-0000-000000000000` on all six handlers now return clean `404`s with resource-specific messages, no raw Postgrest strings. Happy-path requests (valid UUID, owned row) unaffected — confirmed `GET /api/programmes/[id]` and `PATCH /api/agreements/[id]` with the real test-PT agreement still return `200`.
+  - **Files**: `lib/utils.ts` (new `isValidUuid` helper), `app/api/agreements/[id]/route.ts`, `app/api/programmes/[id]/route.ts`, `app/api/templates/[id]/route.ts`
+
+### Audit Results (2026-06-13)
+
+**Data Boundary, Robustness & Injection Resiliency Audit** — Live testing (authenticated PT session) of the previously-unaudited `agreements/[id]` (GET/PATCH/DELETE) and `portal/records` routes, plus a targeted sweep of malformed/non-existent UUID path params across every `[id]`-based route (`programmes/[id]`, `templates/[id]`, `sessions/[id]`, `portal/photos/[id]`, `clients/[id]/export`, `clients/[id]/gdpr-delete`, `programmes/[id]/assign`, `sessions/[id]/complete`, `templates/[id]/duplicate`, `bug-reports/[id]`, `admin/delete-user/[id]`).
+
+- **Suite A (Happy Path)**: `GET /api/agreements/[id]` (own agreement) → 200 ✓. `GET /api/portal/records?clientId=<own>` → 200 ✓.
+- **Suite B (Fringe)**: `PATCH /api/agreements/[id]` with `manual_price_numeric` at 0 and 1,000,000, `program_length_weeks` at 260, `renewal_date` at 1970-01-01 and 2999-12-31, and a 1000+ char `billing_notes` containing emoji (🏋️‍♂️), HTML, and SQL-meta-characters (`'; DROP TABLE users; --`) all stored and returned cleanly via 200 ✓ (React auto-escaping covers rendering, consistent with prior audits).
+- **Suite C (Invalid/Injection)**: 1 systemic failure — BUG-34 above (resolved, 3 files). Non-numeric `manual_price_numeric`, out-of-range/float `program_length_weeks`, invalid `status` enum, `javascript:` URL in `parq_storage_url`, empty body, malformed JSON, and cross-tenant access to another PT's agreement / client's records all returned clean 400/403/404s.
+
+**Other routes reviewed (code-level), no new issues**:
+- `sessions/[id]`, `portal/photos/[id]`, `templates/[id]` (DELETE), `clients/[id]/export`, `clients/[id]/gdpr-delete`, `programmes/[id]/assign`, `sessions/[id]/complete`, `templates/[id]/duplicate`, `bug-reports/[id]`: all confirmed to return clean 403/404s for malformed/non-existent ids (ownership check via `maybeSingle()` swallows the Postgrest error before a raw message can leak).
+
+**Database state**: No new rows created. The test agreement (`f003ab31-edcd-4a96-bb01-3a59015b26c6`) was mutated during Suite B/C testing and restored to its seeded values (`program_length_weeks: 12`, `renewal_date: 2026-07-01`, `manual_price_numeric: 150`, `billing_notes: "Test account — monthly subscription"`) afterward. BUG-34 report (tracker ref #31, filed via `POST /api/bug-reports`) marked resolved via `scripts/audit-cleanup-2026-06-13.ts`.
+
+**Housekeeping**: Removed a stray untracked `scripts/apply_constraint.js` (abandoned debug script containing a hardcoded Supabase service-role key) left over from a prior session.
+
+**Notion sync**: Not applicable — no live defect/feature backlog database in Notion (unchanged from prior runs). **How-to / API validation docs**: no such pages exist in this codebase (unchanged from prior runs); this entry is the canonical record of the new validation rule.
+
+**Scenario**: A — 1 bug found and resolved. Given fewer than 3 defects were found, no new feature was shipped tonight (consistent with 2026-06-10/11/12 precedent). Existing open backlog item **FEAT-21** ("class booking system") remains for a future Scenario B run.
+
+---
+
 ### Security Fixes (2026-06-12 — Automated Audit — Scenario A: 1 Bug Found)
 
 - **BUG-33 (MEDIUM, RESOLVED)**: `POST /api/exercises`, `POST /api/programmes`, `POST /api/templates` — non-string JSON values for optional text fields (`description`, `coaching_cues`, `default_video_url` on exercises; `title` on programmes; `title`/`notes` on templates) crashed with a raw, empty-bodied `500 Internal Server Error`.

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { readJsonBody } from '@/lib/utils';
+import { readJsonBody, isValidUuid } from '@/lib/utils';
 
 interface Params { params: Promise<{ id: string }> }
 
@@ -12,6 +12,8 @@ export async function GET(req: NextRequest, { params }: Params) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  if (!isValidUuid(id)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
   const { data, error } = await supabase
     .from('client_agreements')
     .select(`*, client:profiles!client_agreements_client_id_fkey(*)`)
@@ -20,7 +22,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     .single();
 
   if (error || !data) {
-    return NextResponse.json({ error: error?.message ?? 'Not found' }, { status: 404 });
+    return NextResponse.json({ error: 'Agreement not found' }, { status: 404 });
   }
 
   return NextResponse.json(data);
@@ -33,6 +35,8 @@ export async function DELETE(req: NextRequest, { params }: Params) {
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  if (!isValidUuid(id)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const { error } = await supabase
     .from('client_agreements')
@@ -54,6 +58,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  if (!isValidUuid(id)) return NextResponse.json({ error: 'Agreement not found' }, { status: 404 });
 
   const body = await readJsonBody(req);
   if (body === null) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { readJsonBody } from '@/lib/utils';
+import { readJsonBody, isValidUuid } from '@/lib/utils';
 
 interface Params { params: Promise<{ id: string }> }
 
@@ -10,6 +10,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  if (!isValidUuid(id)) return NextResponse.json({ error: 'Programme not found' }, { status: 404 });
 
   const { data, error } = await supabase
     .from('programmes')
@@ -30,7 +32,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
     .eq('id', id)
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 404 });
+  if (error) return NextResponse.json({ error: 'Programme not found' }, { status: 404 });
 
   // Sort weeks and sessions
   if (data.weeks) {
@@ -49,6 +51,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  if (!isValidUuid(id)) return NextResponse.json({ error: 'Programme not found' }, { status: 404 });
 
   const body = await readJsonBody(req);
   if (body === null) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
@@ -90,6 +94,8 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  if (!isValidUuid(id)) return NextResponse.json({ error: 'Programme not found' }, { status: 404 });
 
   const { error } = await supabase
     .from('programmes')
