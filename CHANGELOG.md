@@ -4,6 +4,36 @@ All notable changes to brigid.pro are documented here.
 
 ## [Unreleased]
 
+### Security Fixes (2026-06-14 — Automated Audit — Scenario A: 1 Bug Found)
+
+- **BUG-35 (LOW, RESOLVED)**: `POST /api/portal/checkin` and `GET /api/portal/checkin` leaked a raw Postgrest exception string instead of a clean validation error when `session_id` / `sessionId` was not a valid UUID.
+  - **Root cause**: Same class as BUG-34. The POST handler's duplicate-check (`.eq('session_id', session_id)`) and the GET handler's lookup (`.eq('session_id', sessionId)`) both passed the client-supplied id straight to a `uuid` column without an `isValidUuid()` guard. Postgres throws `22P02` ("invalid input syntax for type uuid: \"...\"") for a non-UUID-shaped value; the GET handler's `if (error) return NextResponse.json({ error: error.message }, ...)` surfaced this verbatim, and on POST the unguarded id flowed into the subsequent `insert()`, which threw the same raw error.
+  - **Reproduction**: `POST /api/portal/checkin` with `{"sleep":3,"stress":3,"soreness":3,"session_id":"not-a-uuid"}` → `500 {"error":"invalid input syntax for type uuid: \"not-a-uuid\""}` (was). `GET /api/portal/checkin?sessionId=not-a-uuid` → same raw `500` (was). Both confirmed via live local testing with an authenticated client session.
+  - **Fix**: `app/api/portal/checkin/route.ts` — added an `isValidUuid()` check (reusing the existing `lib/utils.ts` helper) immediately after reading `session_id` (POST) and `sessionId` (GET), returning a clean `400 {"error":"session_id must be a valid id"}` / `400 {"error":"sessionId must be a valid id"}` before any query runs.
+  - **Test payloads confirmed blocked**: `session_id: "not-a-uuid"` (POST) and `sessionId=not-a-uuid` (GET) now return clean `400`s. Happy-path requests (valid UUID `session_id`, or omitted `session_id`/`sessionId`) unaffected — confirmed a check-in with no `session_id` still returns `201`.
+  - **Files**: `app/api/portal/checkin/route.ts`
+
+### Audit Results (2026-06-14)
+
+**Data Boundary, Robustness & Injection Resiliency Audit** — Live testing (authenticated client + PT sessions) of the previously-unaudited `portal/checkin` (live, code was only reviewed on 2026-06-10), `pt/adherence`, `clients/[id]/export`, and `clients/[id]/resend-invite` routes, plus code-level review of `pt/avatar` and `sessions` (GET).
+
+- **Suite A (Happy Path)**: `POST /api/portal/checkin` with valid `sleep`/`stress`/`soreness` (no `session_id`) → 201 ✓. `GET /api/pt/adherence?clientId=<own>&weeks=4` → 200 ✓.
+- **Suite B (Fringe)**: `GET /api/pt/adherence?weeks=99999` → clamped to 52 weeks ✓, no error.
+- **Suite C (Invalid/Injection)**: 1 systemic failure — BUG-35 above (resolved, 1 file). `GET /api/pt/adherence?clientId=not-a-uuid` → clean `403 Forbidden` ✓ (error from `.maybeSingle()` not surfaced). `GET /api/clients/[id]/export` and `POST /api/clients/[id]/resend-invite` with `not-a-uuid` → clean `404` ✓ (same `.single()`-without-error-check pattern, but the resulting `null` data already short-circuits to 404 before any error message could leak).
+
+**Other routes reviewed (code-level), no new issues**:
+- `POST`/`DELETE /api/pt/avatar`: MIME-type allowlist (jpeg/png/webp only, no SVG) and 5MB size cap enforced before upload, consistent with `pt/logo`.
+- `GET /api/sessions`: ownership-gated via `client_agreements.maybeSingle()`; malformed `clientId` falls through to clean `403`.
+- `app/api/cron/*` (archive-bug-reports, block-expiry, flag-inactive, session-reminder): all `CRON_SECRET`-gated, no user-controlled input — Suite B/C not applicable.
+
+**Database state**: 1 ephemeral wellbeing check-in created during Suite A live testing was deleted via `scripts/audit-cleanup-2026-06-14.ts`. BUG-35 report (tracker ref #32, filed via `POST /api/bug-reports`) marked resolved via the same script.
+
+**Notion sync**: Not applicable — no live defect/feature backlog database in Notion (unchanged from prior runs).
+
+**Scenario**: A — 1 bug found and resolved. Given fewer than 3 defects were found, no new feature was shipped tonight (consistent with 2026-06-10/11/12/13 precedent). Existing open backlog item **FEAT-21** ("class booking system") remains for a future Scenario B run.
+
+---
+
 ### Security Fixes (2026-06-13 — Automated Audit — Scenario A: 1 Bug Found)
 
 - **BUG-34 (LOW, RESOLVED)**: `GET`/`PATCH`/`DELETE /api/agreements/[id]`, `GET`/`PATCH`/`DELETE /api/programmes/[id]`, and `PATCH /api/templates/[id]` leaked raw Postgrest exception strings instead of clean validation errors when the `[id]` path segment was not a valid UUID, or (for the two `GET` routes) when it was a well-formed UUID that didn't exist / belonged to another PT.

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { readJsonBody } from '@/lib/utils';
+import { readJsonBody, isValidUuid } from '@/lib/utils';
 
 // POST /api/portal/checkin — client submits a pre-session wellbeing check-in
 export async function POST(req: NextRequest) {
@@ -30,6 +30,9 @@ export async function POST(req: NextRequest) {
 
   // Prevent duplicate check-ins for the same session
   if (session_id) {
+    if (typeof session_id !== 'string' || !isValidUuid(session_id)) {
+      return NextResponse.json({ error: 'session_id must be a valid id' }, { status: 400 });
+    }
     const { data: existing } = await supabase
       .from('wellbeing_checkins')
       .select('id')
@@ -66,6 +69,10 @@ export async function GET(req: NextRequest) {
 
   const sessionId = req.nextUrl.searchParams.get('sessionId');
   const clientId  = req.nextUrl.searchParams.get('clientId'); // PT fetching a client's check-in
+
+  if (sessionId && !isValidUuid(sessionId)) {
+    return NextResponse.json({ error: 'sessionId must be a valid id' }, { status: 400 });
+  }
 
   const { data: profile } = await supabase
     .from('profiles').select('role').eq('id', user.id).single();
