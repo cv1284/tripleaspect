@@ -4,6 +4,49 @@ All notable changes to brigid.pro are documented here.
 
 ## [Unreleased]
 
+### Security Fixes (2026-06-16 — Automated Audit — Scenario A: 3 Bugs Found & Fixed)
+
+- **BUG-38 (LOW, RESOLVED)**: `POST /api/exercises` — no maximum length constraint on exercise name.
+  - **Root cause**: No length check on the `name` field. A 1000-character name was accepted and stored with no truncation or rejection, risking layout breakage in the exercise picker, session builder card, and client portal.
+  - **Reproduction**: `POST /api/exercises` with `{"name":"A" * 1000, "category":"forging"}` returned 201 and stored the full string.
+  - **Fix**: Added `if (name.trim().length > 100)` guard; returns `400 {"error":"Exercise name must be 100 characters or fewer"}` before any DB insert.
+  - **Test confirmed**: 100-char name passes; 101-char and 1000-char names rejected with 400. Happy-path requests unaffected.
+  - **File**: `app/api/exercises/route.ts`
+
+- **BUG-39 (LOW, RESOLVED)**: `POST /api/bug-reports` — notes field has no length cap (inconsistent with checkin notes).
+  - **Root cause**: The `notes` field was stored verbatim with no truncation, unlike `POST /api/portal/checkin` which slices notes to 500 characters. A 600+ character notes payload was accepted and written to DB without limit.
+  - **Fix**: Changed notes insert to `typeof notes === 'string' ? notes.trim().slice(0, 2000) || null : null`, capping at 2000 characters. No behavior change for normal submissions.
+  - **Test confirmed**: 3000-char notes accepted (truncated to 2000), no 400 error. Consistent with defensive pattern.
+  - **File**: `app/api/bug-reports/route.ts`
+
+- **BUG-40 (MEDIUM, RESOLVED — migration pending)**: Sessions RLS policy `sessions_pt_all` did not verify `client_id` belongs to the PT's agreement clients on INSERT.
+  - **Root cause**: The `sessions_pt_all` RLS policy used only `using (pt_id = auth.uid())` with no `with check` clause. A PT could insert a session with any arbitrary `client_id` (not one of their agreement clients), causing the session to appear in an unrelated user's client portal.
+  - **Fix**: Migration `010_session_client_ownership_rls.sql` replaces the policy with a `WITH CHECK` clause requiring `client_id` to exist in `client_agreements` for the acting PT.
+  - **Status**: Migration file written. Requires `supabase db push` or manual application via Supabase dashboard.
+  - **File**: `supabase/migrations/010_session_client_ownership_rls.sql`
+
+### Audit Results (2026-06-16)
+
+**Data Boundary, Robustness & Injection Resiliency Audit** — Live testing via local dev server (authenticated PT and client sessions) against all API routes. 28 Suite A tests, 18 Suite B boundary tests, 29 Suite C injection/invalid tests executed.
+
+- **Suite A (Happy Path)**: Exercise creation, programme creation, bug report submission, wellbeing checkin — all 201 ✓.
+- **Suite B (Fringe)**: All clamping and boundary behavior correct (weeks 0->1, 999->52; notes truncation; URL protocol blocks). BUG-38/39 found here.
+- **Suite C (Invalid/Injection)**: Malformed JSON, missing fields, invalid enums, type mismatches, SQL injection in text fields, XSS in text fields, javascript:/data: URL protocols, malformed UUIDs — all correctly blocked or safely stored. BUG-40 identified via RLS code review.
+
+**Security confirmed this run:**
+- `dangerouslySetInnerHTML`: not present in any component (confirmed via codebase grep) - XSS via stored text fields safe
+- `escapeHtml()` applied to all Resend email template interpolations - email XSS safe
+- Protocol allow-list (http/https only) enforced on: `agreements/[id]` doc URL fields, `bug-reports` url field, `client/docs` URL fields
+- `isValidUuid()` guards all `[id]` path parameters before DB queries
+- `readJsonBody()` wraps all `req.json()` calls, returning clean 400 on parse failure
+- Role enforcement: PT vs client endpoints all correctly guarded at API level
+
+**Database state**: All test data deleted post-audit. Test exercises (7 rows), test programmes (7 rows), test wellbeing checkins (3 rows), 5 test bug reports deleted. Test PT auth user (`2fcd8d44`) and test client auth user (`284c982d`) deleted. Audit bug reports BUG-38, BUG-39, BUG-40 preserved as real defect records.
+
+**Scenario**: A — 3 bugs found and resolved (2 code fixes shipped, 1 migration written). Per task spec, Scenario A with exactly 3 bugs does not trigger feature delivery.
+
+---
+
 ### Security Fixes (2026-06-14 — Automated Audit — Scenario A: 1 Bug Found)
 
 - **BUG-35 (LOW, RESOLVED)**: `POST /api/portal/checkin` and `GET /api/portal/checkin` leaked a raw Postgrest exception string instead of a clean validation error when `session_id` / `sessionId` was not a valid UUID.

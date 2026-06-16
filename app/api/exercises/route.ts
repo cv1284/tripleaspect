@@ -21,6 +21,7 @@ export async function POST(req: NextRequest) {
 
   const validCategories = ['healing', 'forging', 'verse'];
   if (typeof name !== 'string' || !name.trim())              return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+  if (name.trim().length > 100)               return NextResponse.json({ error: 'Exercise name must be 100 characters or fewer' }, { status: 400 });
   if (!category)                              return NextResponse.json({ error: 'Category is required' }, { status: 400 });
   if (!validCategories.includes(category))    return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
 

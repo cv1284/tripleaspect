@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       user_id:        user.id,
       url,
       page_title:     page_title || url,
-      notes:          notes || null,
+      notes:          typeof notes === 'string' ? notes.trim().slice(0, 2000) || null : null,
       report_type:    report_type === 'feature' ? 'feature' : 'bug',
       screenshot_url: screenshot_url || null,
       user_agent:     req.headers.get('user-agent'),
