@@ -30,6 +30,10 @@ export async function POST(req: NextRequest) {
   if (!email) return NextResponse.json({ error: 'Email is required' }, { status: 400 });
   if (!isValidEmail(email)) return NextResponse.json({ error: 'Please enter a valid email address.' }, { status: 400 });
 
+  if (typeof full_name === 'string' && full_name.trim().length > 255) {
+    return NextResponse.json({ error: 'Client name must be 255 characters or fewer' }, { status: 400 });
+  }
+
   const validModels = ['subscription', 'fixed_block', 'hybrid'];
   if (agreement_model && !validModels.includes(agreement_model)) {
     return NextResponse.json({ error: 'Invalid agreement_model' }, { status: 400 });

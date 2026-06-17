@@ -10,6 +10,50 @@ interface Props {
   params: Promise<{ clientId: string }>;
 }
 
+// ─── Wellbeing helpers ────────────────────────────────────
+
+type WellbeingCheckin = {
+  id:         string;
+  sleep:      number;
+  stress:     number;
+  soreness:   number;
+  notes:      string | null;
+  created_at: string;
+};
+
+function scoreClass(metric: 'sleep' | 'stress' | 'soreness', val: number) {
+  // sleep: higher = better; stress/soreness: lower = better
+  const good = metric === 'sleep' ? val >= 4 : val <= 2;
+  const bad  = metric === 'sleep' ? val <= 2 : val >= 4;
+  if (good) return 'text-emerald-400';
+  if (bad)  return 'text-rose-400';
+  return 'text-amber-400';
+}
+
+function CheckinRow({ c }: { c: WellbeingCheckin }) {
+  const dateStr = format(parseISO(c.created_at), 'EEE d MMM yyyy');
+  return (
+    <div className="card p-3 flex items-center gap-4">
+      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-indigo-900/40">
+        <span className="text-base leading-none text-indigo-400">◎</span>
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-mono text-slate-500">{dateStr}</p>
+        {c.notes && (
+          <p className="text-2xs text-slate-600 truncate mt-0.5">{c.notes}</p>
+        )}
+      </div>
+      <div className="flex items-center gap-2 flex-shrink-0 text-xs font-mono">
+        <span className={scoreClass('sleep',    c.sleep)}>Slp:{c.sleep}</span>
+        <span className="text-slate-700">·</span>
+        <span className={scoreClass('stress',   c.stress)}>Str:{c.stress}</span>
+        <span className="text-slate-700">·</span>
+        <span className={scoreClass('soreness', c.soreness)}>Srs:{c.soreness}</span>
+      </div>
+    </div>
+  );
+}
+
 // ─── Session Row ──────────────────────────────────────────
 
 function SessionRow({ session }: { session: Session }) {
@@ -90,6 +134,13 @@ export default async function HistoryPage({ params }: Props) {
     .order('scheduled_date', { ascending: false })
     .limit(100);
 
+  const { data: checkins } = await supabase
+    .from('wellbeing_checkins')
+    .select('id, sleep, stress, soreness, notes, created_at')
+    .eq('client_id', clientId)
+    .order('created_at', { ascending: false })
+    .limit(20);
+
   const groups = groupByMonth((sessions ?? []) as Session[]);
 
   return (
@@ -123,6 +174,17 @@ export default async function HistoryPage({ params }: Props) {
               ))}
             </div>
           ))
+        )}
+
+        {(checkins ?? []).length > 0 && (
+          <div className="space-y-2">
+            <h2 className="text-xs font-mono text-slate-500 uppercase tracking-widest px-1">
+              Wellbeing Check-ins
+            </h2>
+            {(checkins as WellbeingCheckin[]).map(c => (
+              <CheckinRow key={c.id} c={c} />
+            ))}
+          </div>
         )}
 
       </main>

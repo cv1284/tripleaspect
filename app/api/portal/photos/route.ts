@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
       client_id:    user.id,
       storage_path: path,
       public_url:   publicUrl,
-      notes:        notes?.trim() || null,
+      notes:        typeof notes === 'string' ? notes.trim().slice(0, 500) || null : null,
       taken_at:     dateValue,
     })
     .select('id, public_url, notes, taken_at, created_at')
