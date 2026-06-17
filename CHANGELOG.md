@@ -4,6 +4,24 @@ All notable changes to brigid.pro are documented here.
 
 ## [Unreleased]
 
+### Security Fixes + Feature (2026-06-17 — Automated Audit — Scenario B: 2 Bugs Fixed + 1 Feature)
+
+- **BUG-41 (LOW, RESOLVED)**: `POST /api/clients` — `full_name` field had no maximum length constraint.
+  - **Root cause**: The `full_name` parameter was passed directly to Supabase auth invite and profiles upsert with no length check, inconsistent with BUG-12 which capped PT `full_name` at 255 chars during signup. A client name exceeding 255 chars would overflow the `profiles.full_name` column and could cause layout breakage in the PT Client Directory, Client Profile Drawer, and JSON data export filename.
+  - **Reproduction**: `POST /api/clients` with `{"email":"x@y.com","full_name":"A"*300}` returned 201 and stored the oversized string.
+  - **Fix**: Added `if (typeof full_name === 'string' && full_name.trim().length > 255)` guard; returns `400 {"error":"Client name must be 255 characters or fewer"}` before any invite or DB write.
+  - **File**: `app/api/clients/route.ts`
+
+- **BUG-42 (LOW, RESOLVED)**: `POST /api/portal/photos` — `notes` field had no maximum length constraint.
+  - **Root cause**: Photo notes were stored via `notes?.trim() || null` with no cap, unlike `POST /api/portal/checkin` (500-char truncation) and `POST /api/bug-reports` (2000-char truncation after BUG-39). Allowed unbounded DB writes from client-supplied notes.
+  - **Fix**: Changed insert to `typeof notes === 'string' ? notes.trim().slice(0, 500) || null : null`, truncating to 500 chars, consistent with the check-in pattern.
+  - **File**: `app/api/portal/photos/route.ts`
+
+### Feature (2026-06-17 — Automated Audit — Scenario B)
+
+- **Wellbeing Check-in History in Client History Page**: The client History page previously showed only past sessions. This release adds a "Wellbeing Check-ins" section below the sessions list, displaying the last 20 check-ins with date and colour-coded sleep/stress/soreness scores (emerald = good, amber = moderate, rose = poor). Scores are semantically inverted for stress and soreness (lower is better). Data is fetched server-side using the existing `wellbeing_checkins` RLS policies. No new API route, no new DB migration, no new npm dependencies.
+  - **File**: `app/portal/[clientId]/history/page.tsx`
+
 ### Security Fixes (2026-06-16 — Automated Audit — Scenario A: 3 Bugs Found & Fixed)
 
 - **BUG-38 (LOW, RESOLVED)**: `POST /api/exercises` — no maximum length constraint on exercise name.
