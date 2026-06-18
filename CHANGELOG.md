@@ -4,6 +4,58 @@ All notable changes to brigid.pro are documented here.
 
 ## [Unreleased]
 
+### Fixes + Feature (2026-06-18 — Automated Audit — Scenario B: 5 Bugs Fixed + 1 Feature)
+
+**BUG-43 (RESOLVED)**: Template library showed "Unknown exercise" for all template items.
+- **Root cause**: `app/pt/templates/page.tsx` server-side query was missing `exercise:exercises(*)` in the `session_template_items` select. The API route (`/api/templates`) had it correctly; the page query did not.
+- **Fix**: Added `exercise:exercises(*)` to the template_items select in the page query.
+- **File**: `app/pt/templates/page.tsx`
+
+**BUG-44 (RESOLVED)**: Programme builder assign modal showed empty client dropdown (non-existent DB columns).
+- **Root cause**: `app/pt/programmes/[id]/page.tsx` included `deletion_scheduled_at` and `deletion_reason` in the `client_agreements` select — columns from migration `002_deletion_scheduling.sql` that was never applied to the live DB. PostgreSQL error 42703 silently killed the query, returning zero agreements.
+- **Fix**: Removed those columns from the select; hardcoded `deletion_scheduled_at: null` and `deletion_reason: null` in the `ClientRow` mapping.
+- **File**: `app/pt/programmes/[id]/page.tsx`
+
+**BUG-45 (RESOLVED)**: Programme builder assign modal still empty after BUG-44 fix (null profile join).
+- **Root cause**: `client_agreements` has two FKs to `profiles` (`pt_id` and `client_id`). Without an explicit FK hint, Supabase's join returned null for the client profile — same RLS quirk already handled in `clients/page.tsx`.
+- **Fix**: Changed join to `profiles!client_agreements_client_id_fkey`; added admin-client fallback for any remaining nulls.
+- **File**: `app/pt/programmes/[id]/page.tsx`
+
+**BUG-46 (RESOLVED)**: Programme sessions not persisting after Save — session grid lost on navigation.
+- **Root cause**: `ProgrammeBuilder.tsx` `handleSave` was a documented stub that only PATCHed programme metadata. Sessions existed only in React state (with `local_${Date.now()}` IDs) and were never written to DB.
+- **Fix**: Created `POST /api/programmes/[id]/save-tree` — wipes and re-inserts `programme_sessions` per week (validates UUIDs, category enum, day_of_week range). Updated `handleSave` to call it in parallel with the metadata PATCH.
+- **Files**: `app/api/programmes/[id]/save-tree/route.ts` (new), `components/pt/ProgrammeBuilder.tsx`
+
+**BUG-47 (RESOLVED)**: `PATCH /api/programmes/[id]` returned 500 for non-owned or non-existent programmes.
+- **Root cause**: `.update().eq('pt_id', user.id).single()` throws PGRST116 ("Cannot coerce to single JSON object") when no rows match — programme doesn't exist or belongs to another PT. Error was passed through as a 500.
+- **Fix**: Changed to `.maybeSingle()` + explicit `if (!data) return 404`.
+- **File**: `app/api/programmes/[id]/route.ts`
+
+### Feature (2026-06-18 — Automated Audit — Scenario B)
+
+**Personal Records on Client History Page** (`app/portal/[clientId]/history/page.tsx`)
+- New "Personal Records" section at the bottom of the client's History tab. Shows lifetime bests per exercise per metric (weight, reps, distance, duration) extracted from all completed session items.
+- Displays exercise name, category icon (Healing/Forging/Verse), achieved date, source session title, and value with unit (e.g. "60 kg", "10 reps").
+- Server-side: queries `session_items → sessions!inner` filtered to completed sessions for this client; iterates per metric, tracks maximum value, sorts by category then exercise name.
+- Wires up `GET /api/portal/records` logic that was added 2026-06-07 but had no frontend.
+
+### Audit Results (2026-06-18)
+
+**Smoke Tests — 9/9 PASS** (Journey 1–5 PT, Journey 6–8 Client, Journey 9 Cross-account)
+
+**Data Boundary & Injection Audit:**
+- **Suite A (Happy Path)**: All vectors ✓
+- **Suite B (Edge cases)**: All boundary tests ✓ (name ≤100 chars enforced; empty title blocked; category whitelist; 0-week programme accepted; SQL injection in week IDs neutralized by `isValidUuid`)
+- **Suite C (Injection/IDOR)**: All ✓ — XSS stored as literal (React JSX escapes); IDOR on exercises/sessions/templates/programmes all 404/403; role enforcement (PT/client) correct; PATCH 500→404 fixed (BUG-47)
+
+**Security Summary**: SQL injection SAFE · XSS SAFE · IDOR SAFE · Role enforcement SAFE · Field whitelists SAFE
+
+**Scenario**: B — 5 bugs resolved + 1 feature delivered.
+
+**Notion sync**: Not applicable — no live defect/feature backlog database in Notion (unchanged from prior runs).
+
+---
+
 ### Security Fixes + Feature (2026-06-17 — Automated Audit — Scenario B: 2 Bugs Fixed + 1 Feature)
 
 - **BUG-41 (LOW, RESOLVED)**: `POST /api/clients` — `full_name` field had no maximum length constraint.
