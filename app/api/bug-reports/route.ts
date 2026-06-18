@@ -31,6 +31,20 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdminClient();
 
+  // Rate limit: 5 reports per user per hour
+  const windowStart = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { count } = await admin
+    .from('bug_reports')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .gte('created_at', windowStart);
+  if ((count ?? 0) >= 5) {
+    return NextResponse.json(
+      { error: 'Too many reports — please wait before submitting again.' },
+      { status: 429 }
+    );
+  }
+
   const { data: report, error } = await admin
     .from('bug_reports')
     .insert({

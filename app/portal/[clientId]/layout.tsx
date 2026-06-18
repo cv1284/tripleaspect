@@ -1,6 +1,7 @@
-import { createClient } from '@/lib/supabase/server';
-import { redirect }     from 'next/navigation';
-import ClientNav        from '@/components/client/ClientNav';
+import { createClient }   from '@/lib/supabase/server';
+import { redirect }        from 'next/navigation';
+import ClientNav           from '@/components/client/ClientNav';
+import BugReportButton     from '@/components/pt/BugReportButton';
 
 interface Props {
   children:  React.ReactNode;
@@ -20,6 +21,7 @@ export default async function PortalLayout({ children, params }: Props) {
     <>
       {children}
       {isOwnPortal && <ClientNav clientId={clientId} />}
+      {isOwnPortal && <BugReportButton userId={user.id} userEmail={user.email ?? ''} />}
     </>
   );
 }
