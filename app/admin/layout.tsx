@@ -1,6 +1,7 @@
-import Link from 'next/link';
+import Link            from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { redirect }     from 'next/navigation';
+import BugReportButton  from '@/components/pt/BugReportButton';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase    = await createClient();
@@ -23,6 +24,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </p>
       </header>
       {children}
+      <BugReportButton userId={user.id} userEmail={user.email ?? ''} />
     </div>
   );
 }

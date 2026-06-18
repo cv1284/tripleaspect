@@ -1,4 +1,5 @@
-import { createClient } from '@/lib/supabase/server';
+import { createClient }      from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { redirect, notFound } from 'next/navigation';
 import { Profile, ClientAgreement } from '@/types/database';
 import ClientAccountClient from './AccountClient';
@@ -34,6 +35,20 @@ export default async function ClientAccountPage({ params }: Props) {
     .limit(1)
     .maybeSingle();
 
+  // Client RLS cannot read PT profiles — fetch via admin client
+  let ptName:  string | null = null;
+  let ptEmail: string | null = null;
+  if (agreement?.pt_id) {
+    const admin = createAdminClient();
+    const { data: pt } = await admin
+      .from('profiles')
+      .select('full_name, email')
+      .eq('id', agreement.pt_id)
+      .single();
+    ptName  = pt?.full_name ?? null;
+    ptEmail = pt?.email     ?? null;
+  }
+
   return (
     <div className="min-h-screen bg-surface-0">
       <header className="sticky top-0 z-20 bg-surface-0/90 backdrop-blur-md border-b border-surface-border">
@@ -46,6 +61,8 @@ export default async function ClientAccountPage({ params }: Props) {
         profile={profile as Profile}
         clientId={clientId}
         agreement={agreement as ClientAgreement | null}
+        ptName={ptName}
+        ptEmail={ptEmail}
       />
     </div>
   );

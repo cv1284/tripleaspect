@@ -9,6 +9,8 @@ interface Props {
   profile:   Profile;
   clientId:  string;
   agreement: ClientAgreement | null;
+  ptName:    string | null;
+  ptEmail:   string | null;
 }
 
 const DOCS = [
@@ -17,7 +19,7 @@ const DOCS = [
   { key: 'consent', label: 'Informed Consent', urlField: 'consent_storage_url' as const, signedField: 'consent_signed' as const },
 ];
 
-export default function ClientAccountClient({ profile, clientId, agreement }: Props) {
+export default function ClientAccountClient({ profile, clientId, agreement, ptName, ptEmail }: Props) {
   const router = useRouter();
 
   // ── Name ─────────────────────────────────────────────────
@@ -133,6 +135,36 @@ export default function ClientAccountClient({ profile, clientId, agreement }: Pr
           <p className="text-2xs font-mono text-slate-600 mt-1">Contact your coach to update your email address.</p>
         </div>
       </section>
+
+      {/* Your Coach */}
+      {(ptName || ptEmail) && (
+        <section className="card p-5 space-y-3">
+          <h2 className="text-sm font-semibold text-slate-200">Your Coach</h2>
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-surface-3 border border-surface-border flex items-center justify-center flex-shrink-0">
+              <span className="text-xs font-mono font-semibold text-slate-400">
+                {(ptName ?? ptEmail ?? '?').charAt(0).toUpperCase()}
+              </span>
+            </div>
+            <div className="min-w-0">
+              {ptName && <p className="text-sm font-medium text-slate-200">{ptName}</p>}
+              {ptEmail && (
+                <a href={`mailto:${ptEmail}`} className="text-xs font-mono text-indigo-400 hover:text-indigo-300 transition-colors truncate block">
+                  {ptEmail}
+                </a>
+              )}
+            </div>
+            {ptEmail && (
+              <a
+                href={`mailto:${ptEmail}`}
+                className="ml-auto flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-surface-border text-slate-400 hover:text-slate-200 hover:border-slate-500 text-xs font-medium transition-colors"
+              >
+                ✉ Message
+              </a>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Onboarding Documents */}
       {agreement && (
