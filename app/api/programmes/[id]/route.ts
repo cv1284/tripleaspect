@@ -82,9 +82,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     .eq('id', id)
     .eq('pt_id', user.id)
     .select('id, title, description, category, total_weeks, is_public, updated_at')
-    .single();
+    .maybeSingle();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!data) return NextResponse.json({ error: 'Programme not found' }, { status: 404 });
   return NextResponse.json(data);
 }
 

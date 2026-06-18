@@ -296,22 +296,38 @@ export default function ProgrammeBuilder({ programme: initial, clients }: Props)
     setSaving(true);
     setSaveMsg(null);
 
-    // Persist the full programme tree via a series of upserts
-    // For a full implementation this would call a dedicated save-tree endpoint.
-    // For now we PATCH metadata and show a save indicator.
-    const res = await fetch(`/api/programmes/${programme.id}`, {
-      method:  'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({
-        title:       programme.title,
-        description: programme.description,
-        category:    programme.category,
-        is_public:   programme.is_public,
+    const [metaRes, treeRes] = await Promise.all([
+      fetch(`/api/programmes/${programme.id}`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          title:       programme.title,
+          description: programme.description,
+          category:    programme.category,
+          is_public:   programme.is_public,
+        }),
       }),
-    });
+      fetch(`/api/programmes/${programme.id}/save-tree`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          weeks: programme.weeks?.map(w => ({
+            id:       w.id,
+            sessions: (w.sessions ?? []).map((s, idx) => ({
+              day_of_week: s.day_of_week,
+              title:       s.title,
+              category:    s.category,
+              notes:       s.notes ?? null,
+              sort_order:  idx,
+              template_id: s.template_id ?? null,
+            })),
+          })) ?? [],
+        }),
+      }),
+    ]);
 
     setSaving(false);
-    setSaveMsg(res.ok ? '✓ Saved' : '✕ Save failed');
+    setSaveMsg(metaRes.ok && treeRes.ok ? '✓ Saved' : '✕ Save failed');
     setTimeout(() => setSaveMsg(null), 2500);
   }
 

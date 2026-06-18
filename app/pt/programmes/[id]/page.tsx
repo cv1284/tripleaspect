@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { Programme, ClientRow } from '@/types/database';
 import ProgrammeBuilder from '@/components/pt/ProgrammeBuilder';
 import { isOnboardingComplete } from '@/types/database';
@@ -50,23 +51,35 @@ export default async function ProgrammeBuilderPage({ params }: Props) {
   const { data: agreements } = await supabase
     .from('client_agreements')
     .select(`
-      id, status, agreement_model, start_date, renewal_date, program_length_weeks,
+      id, client_id, status, agreement_model, start_date, renewal_date, program_length_weeks,
       parq_signed, parq_storage_url, waiver_signed, waiver_storage_url,
       consent_signed, consent_storage_url,
       manual_price_numeric, manual_currency, billing_notes,
       stripe_customer_id, stripe_subscription_id,
-      deletion_scheduled_at, deletion_reason,
       created_at, updated_at,
-      client:profiles ( id, email, full_name, role, avatar_url, logo_url, created_at, updated_at )
+      client:profiles!client_agreements_client_id_fkey ( id, email, full_name, role, avatar_url, logo_url, created_at, updated_at )
     `)
     .eq('pt_id', user.id)
     .eq('status', 'active');
 
   type ClientProfile = { id: string; email: string; full_name: string | null; role: string; avatar_url: string | null; logo_url: string | null; created_at: string; updated_at: string };
 
-  const clients: ClientRow[] = (agreements ?? []).map(a => {
-    // Supabase returns joined 1:1 relations as a single object
-    const c = a.client as unknown as ClientProfile;
+  // Profiles can come back null due to RLS join quirk — fetch via admin as fallback
+  const nullClientIds = (agreements ?? []).filter(a => a.client == null).map(a => a.client_id);
+  let adminProfiles: Record<string, ClientProfile> = {};
+  if (nullClientIds.length > 0) {
+    const admin = createAdminClient();
+    const { data: fallback } = await admin
+      .from('profiles')
+      .select('id, email, full_name, role, avatar_url, logo_url, created_at, updated_at')
+      .in('id', nullClientIds);
+    for (const p of fallback ?? []) adminProfiles[p.id] = p as unknown as ClientProfile;
+  }
+
+  const clients: ClientRow[] = (agreements ?? [])
+    .filter(a => a.client != null || adminProfiles[a.client_id] != null)
+    .map(a => {
+    const c = (a.client ?? adminProfiles[a.client_id]) as unknown as ClientProfile;
     return {
       ...c,
       role: c.role as 'pt' | 'client',
@@ -90,8 +103,8 @@ export default async function ProgrammeBuilderPage({ params }: Props) {
         billing_notes:          a.billing_notes,
         stripe_customer_id:     a.stripe_customer_id,
         stripe_subscription_id: a.stripe_subscription_id,
-        deletion_scheduled_at:  a.deletion_scheduled_at,
-        deletion_reason:        a.deletion_reason,
+        deletion_scheduled_at:  null,
+        deletion_reason:        null,
         created_at:             a.created_at,
         updated_at:             a.updated_at,
       },

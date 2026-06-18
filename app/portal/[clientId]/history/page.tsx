@@ -10,6 +10,57 @@ interface Props {
   params: Promise<{ clientId: string }>;
 }
 
+// ─── Personal Records ─────────────────────────────────────
+
+type PersonalRecord = {
+  exercise_id:   string;
+  exercise_name: string;
+  category:      string;
+  metric:        string;
+  value:         number;
+  unit:          string;
+  achieved_at:   string;
+  session_title: string;
+};
+
+const METRIC_LABELS: Record<string, string> = {
+  weight_kg:        'Weight',
+  reps:             'Reps',
+  distance_km:      'Distance',
+  duration_minutes: 'Duration',
+};
+
+function RecordRow({ r }: { r: PersonalRecord }) {
+  const cfg     = CATEGORY_CONFIG[r.category as keyof typeof CATEGORY_CONFIG];
+  const dateStr = r.achieved_at
+    ? format(parseISO(r.achieved_at), 'EEE d MMM yyyy')
+    : '—';
+  const label = METRIC_LABELS[r.metric] ?? r.metric;
+  const display = r.unit === 'reps'
+    ? `${r.value} reps`
+    : r.unit === 'kg'
+    ? `${r.value} kg`
+    : r.unit === 'km'
+    ? `${r.value} km`
+    : `${r.value} min`;
+
+  return (
+    <div className="card p-3 flex items-center gap-4">
+      <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${cfg?.bg ?? 'bg-surface-3'}`}>
+        <span className={`text-base leading-none ${cfg?.color ?? 'text-slate-400'}`}>{cfg?.icon ?? '◈'}</span>
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-slate-200 truncate">{r.exercise_name}</p>
+        <p className="text-xs font-mono text-slate-500 mt-0.5">{dateStr} · {r.session_title}</p>
+      </div>
+      <div className="text-right flex-shrink-0">
+        <p className="text-sm font-mono font-semibold text-amber-400">{display}</p>
+        <p className="text-2xs font-mono text-slate-600 mt-0.5">{label}</p>
+      </div>
+    </div>
+  );
+}
+
 // ─── Wellbeing helpers ────────────────────────────────────
 
 type WellbeingCheckin = {
@@ -141,6 +192,46 @@ export default async function HistoryPage({ params }: Props) {
     .order('created_at', { ascending: false })
     .limit(20);
 
+  // Personal records: lifetime bests per exercise per metric from completed sessions
+  const { data: rawItems } = await supabase
+    .from('session_items')
+    .select(`
+      id, prescribed_metrics,
+      exercise:exercises ( id, name, category ),
+      session:sessions!inner ( id, title, scheduled_date, client_id, completed_at )
+    `)
+    .eq('session.client_id', clientId)
+    .not('session.completed_at', 'is', null);
+
+  const trackedMetrics = [
+    { key: 'weight_kg', unit: 'kg' },
+    { key: 'reps', unit: 'reps' },
+    { key: 'distance_km', unit: 'km' },
+    { key: 'duration_minutes', unit: 'min' },
+  ];
+  const bests = new Map<string, PersonalRecord>();
+  for (const item of rawItems ?? []) {
+    const ex      = item.exercise as unknown as { id: string; name: string; category: string } | null;
+    const session = item.session  as unknown as { title: string; scheduled_date: string | null; completed_at: string | null } | null;
+    const metrics = item.prescribed_metrics as Record<string, unknown> | null;
+    if (!ex || !session || !metrics) continue;
+    const achievedAt = session.completed_at ?? session.scheduled_date ?? '';
+    for (const { key, unit } of trackedMetrics) {
+      const raw = metrics[key];
+      if (raw == null) continue;
+      const num = typeof raw === 'string' ? parseFloat(raw) : Number(raw);
+      if (!isFinite(num) || num <= 0) continue;
+      const mapKey = `${ex.id}::${key}`;
+      const existing = bests.get(mapKey);
+      if (!existing || num > existing.value) {
+        bests.set(mapKey, { exercise_id: ex.id, exercise_name: ex.name, category: ex.category,
+          metric: key, value: num, unit, achieved_at: achievedAt, session_title: session.title });
+      }
+    }
+  }
+  const records: PersonalRecord[] = Array.from(bests.values())
+    .sort((a, b) => a.category.localeCompare(b.category) || a.exercise_name.localeCompare(b.exercise_name));
+
   const groups = groupByMonth((sessions ?? []) as Session[]);
 
   return (
@@ -183,6 +274,17 @@ export default async function HistoryPage({ params }: Props) {
             </h2>
             {(checkins as WellbeingCheckin[]).map(c => (
               <CheckinRow key={c.id} c={c} />
+            ))}
+          </div>
+        )}
+
+        {records.length > 0 && (
+          <div className="space-y-2">
+            <h2 className="text-xs font-mono text-slate-500 uppercase tracking-widest px-1">
+              Personal Records
+            </h2>
+            {records.map(r => (
+              <RecordRow key={`${r.exercise_id}::${r.metric}`} r={r} />
             ))}
           </div>
         )}

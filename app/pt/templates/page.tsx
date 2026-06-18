@@ -23,7 +23,7 @@ export default async function TemplatesPage() {
     .select(`
       id, pt_id, pt_name, title, category, notes, is_public, created_at, updated_at,
       pt:profiles!session_templates_pt_id_fkey(logo_url),
-      template_items:session_template_items(id, sort_order, exercise_id, prescribed_metrics, custom_coaching_cues, custom_youtube_url)
+      template_items:session_template_items(id, sort_order, exercise_id, prescribed_metrics, custom_coaching_cues, custom_youtube_url, exercise:exercises(*))
     `)
     .order('created_at', { ascending: false });
 
