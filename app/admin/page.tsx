@@ -31,20 +31,27 @@ export default async function AdminPage() {
     );
   }
 
-  // Count agreements per PT for quota display
-  const ptIds = (profiles ?? []).filter(p => p.role === 'pt').map(p => p.id);
-  const { data: agreements } = ptIds.length
-    ? await admin.from('client_agreements').select('pt_id').in('pt_id', ptIds)
-    : { data: [] };
+  // Fetch all agreements for PT quota counts and client→PT mapping
+  const { data: agreements } = await admin
+    .from('client_agreements')
+    .select('pt_id, client_id');
 
   const clientCountByPt: Record<string, number> = {};
+  const ptIdByClient:    Record<string, string>  = {};
   for (const a of agreements ?? []) {
     clientCountByPt[a.pt_id] = (clientCountByPt[a.pt_id] ?? 0) + 1;
+    ptIdByClient[a.client_id] = a.pt_id;
+  }
+
+  const ptNameById: Record<string, string> = {};
+  for (const p of profiles ?? []) {
+    if (p.role === 'pt') ptNameById[p.id] = p.full_name ?? p.email;
   }
 
   const enriched = (profiles ?? []).map(p => ({
     ...p,
     client_count: clientCountByPt[p.id] ?? 0,
+    pt_name:      p.role === 'client' ? (ptNameById[ptIdByClient[p.id] ?? ''] ?? null) : null,
   }));
 
   // Fetch bug reports for the panel

@@ -11,6 +11,7 @@ interface Profile {
   created_at:         string;
   free_client_quota:  number;
   client_count:       number;
+  pt_name:            string | null;
 }
 
 interface Props {
@@ -363,6 +364,9 @@ function UserRow({
         </div>
         <p className="text-2xs font-mono text-slate-600 truncate">{profile.email}</p>
         <p className="text-2xs font-mono text-slate-700">Joined {joined}</p>
+        {!isCoach && profile.pt_name && (
+          <p className="text-2xs font-mono text-indigo-500">Coach: {profile.pt_name}</p>
+        )}
       </div>
 
       {/* Quota editor — PT rows only */}
