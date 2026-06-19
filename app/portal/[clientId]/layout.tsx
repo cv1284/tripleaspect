@@ -2,6 +2,7 @@ import { createClient }   from '@/lib/supabase/server';
 import { redirect }        from 'next/navigation';
 import ClientNav           from '@/components/client/ClientNav';
 import BugReportButton     from '@/components/pt/BugReportButton';
+import ErrorBoundary       from '@/components/ErrorBoundary';
 
 interface Props {
   children:  React.ReactNode;
@@ -19,7 +20,9 @@ export default async function PortalLayout({ children, params }: Props) {
 
   return (
     <>
-      {children}
+      <ErrorBoundary label="Client Portal">
+        {children}
+      </ErrorBoundary>
       {isOwnPortal && <ClientNav clientId={clientId} />}
       {isOwnPortal && <BugReportButton userId={user.id} userEmail={user.email ?? ''} />}
     </>

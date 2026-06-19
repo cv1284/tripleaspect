@@ -82,14 +82,17 @@ function ExercisePicker({
   onSelect:   (ex: Exercise) => void;
   onClose:    () => void;
 }) {
-  const [search,    setSearch]    = useState('');
-  const [catFilter, setCatFilter] = useState<SessionCategory | 'all'>('all');
-  const [creating,  setCreating]  = useState(false);
-  const [newEx,     setNewEx]     = useState({ name: '', category: category as string, description: '', coaching_cues: '', tags: '' });
-  const [saving,    setSaving]    = useState(false);
-  const [createErr, setCreateErr] = useState<string | null>(null);
+  const [search,          setSearch]          = useState('');
+  const [catFilter,       setCatFilter]       = useState<SessionCategory | 'all'>('all');
+  const [creating,        setCreating]        = useState(false);
+  const [newEx,           setNewEx]           = useState({ name: '', category: category as string, description: '', coaching_cues: '', tags: '' });
+  const [saving,          setSaving]          = useState(false);
+  const [createErr,       setCreateErr]       = useState<string | null>(null);
+  const [localExercises,  setLocalExercises]  = useState<Exercise[]>(exercises);
+  const [deleting,        setDeleting]        = useState<Set<string>>(new Set());
+  const [deleteErr,       setDeleteErr]       = useState<string | null>(null);
 
-  const filtered = exercises.filter(e => {
+  const filtered = localExercises.filter(e => {
     if (catFilter !== 'all' && e.category !== catFilter) return false;
     if (search) {
       const q = search.toLowerCase();
@@ -97,6 +100,20 @@ function ExercisePicker({
     }
     return true;
   });
+
+  async function handleDelete(ex: Exercise, e: React.MouseEvent) {
+    e.stopPropagation();
+    setDeleteErr(null);
+    setDeleting(prev => new Set(prev).add(ex.id));
+    const res = await fetch(`/api/exercises/${ex.id}`, { method: 'DELETE' });
+    setDeleting(prev => { const next = new Set(prev); next.delete(ex.id); return next; });
+    if (!res.ok) {
+      const data = await res.json();
+      setDeleteErr(data.error ?? 'Failed to delete exercise');
+      return;
+    }
+    setLocalExercises(prev => prev.filter(e => e.id !== ex.id));
+  }
 
   async function handleCreate() {
     if (!newEx.name.trim()) { setCreateErr('Name is required.'); return; }
@@ -176,6 +193,9 @@ function ExercisePicker({
         {/* Library list */}
         {!creating && (
           <div className="overflow-y-auto" style={{ maxHeight: '50vh' }}>
+            {deleteErr && (
+              <p className="px-4 py-2 text-xs font-mono text-red-400 border-b border-surface-border">{deleteErr}</p>
+            )}
             {filtered.length === 0 ? (
               <div className="py-8 text-center space-y-2">
                 <p className="text-slate-600 text-sm font-mono">No exercises found</p>
@@ -185,28 +205,46 @@ function ExercisePicker({
               </div>
             ) : (
               filtered.map(ex => {
-                const cfg = CATEGORY_CONFIG[ex.category];
+                const cfg        = CATEGORY_CONFIG[ex.category];
+                const isDeleting = deleting.has(ex.id);
                 return (
-                  <button
+                  <div
                     key={ex.id}
-                    type="button"
-                    onClick={() => { onSelect(ex); onClose(); }}
-                    className="w-full flex items-center gap-3 px-4 py-3 hover:bg-surface-4 transition-colors text-left border-b border-surface-border/50"
+                    className="flex items-center border-b border-surface-border/50 hover:bg-surface-4 transition-colors"
                   >
-                    <span className={`text-base ${cfg.color}`}>{cfg.icon}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-200">{ex.name}</p>
-                      {ex.tags && (
-                        <p className="text-2xs font-mono text-slate-600 truncate">{ex.tags.join(' · ')}</p>
-                      )}
-                      {ex.is_custom && (
-                        <span className="text-2xs font-mono text-indigo-500">custom</span>
-                      )}
-                    </div>
-                    <span className={`text-2xs font-mono ${cfg.color} ${cfg.bg} px-2 py-0.5 rounded`}>
-                      {cfg.label}
-                    </span>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => { onSelect(ex); onClose(); }}
+                      className="flex-1 flex items-center gap-3 px-4 py-3 text-left min-w-0"
+                    >
+                      <span className={`text-base flex-shrink-0 ${cfg.color}`}>{cfg.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-200">{ex.name}</p>
+                        {ex.tags && (
+                          <p className="text-2xs font-mono text-slate-600 truncate">{ex.tags.join(' · ')}</p>
+                        )}
+                        {ex.is_custom && (
+                          <span className="text-2xs font-mono text-indigo-500">custom</span>
+                        )}
+                      </div>
+                      <span className={`text-2xs font-mono flex-shrink-0 ${cfg.color} ${cfg.bg} px-2 py-0.5 rounded`}>
+                        {cfg.label}
+                      </span>
+                    </button>
+                    {ex.is_custom && (
+                      <button
+                        type="button"
+                        onClick={e => handleDelete(ex, e)}
+                        disabled={isDeleting}
+                        title="Delete custom exercise"
+                        className="flex-shrink-0 px-3 py-3 text-slate-600 hover:text-red-400 disabled:opacity-30 transition-colors text-sm"
+                      >
+                        {isDeleting ? (
+                          <span className="w-3 h-3 border border-slate-600 border-t-red-400 rounded-full animate-spin inline-block" />
+                        ) : '×'}
+                      </button>
+                    )}
+                  </div>
                 );
               })
             )}

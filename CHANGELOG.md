@@ -4,6 +4,16 @@ All notable changes to brigid.pro are documented here.
 
 ## [Unreleased]
 
+### Features (2026-06-19 — Automated Audit — 2 Features Shipped)
+
+**FEAT-1: Delete custom exercise from exercise picker** (`app/api/exercises/[id]/route.ts`, `components/pt/SessionBuilder.tsx`)
+- New `DELETE /api/exercises/[id]` route: PT-only, validates UUID, confirms `is_custom = true` and `created_by_pt_id = user.id`, returns 409 if exercise is referenced by session items (FK constraint), 404 if not found.
+- `ExercisePicker` now maintains local exercises state and renders each exercise row as a `div` with a separate inner select `button` and, for custom exercises only, an `×` delete `button`. Clicking `×` calls the DELETE API and removes the exercise from the local list immediately; a spinner shows during deletion; errors surface inline above the list.
+
+**FEAT-2: Error boundary components for PT dashboard and client portal** (`components/ErrorBoundary.tsx`, `app/pt/layout.tsx`, `app/portal/[clientId]/layout.tsx`)
+- New `ErrorBoundary` React class component (`'use client'`) wraps `{children}` in both the PT layout and client portal layout. On unhandled render errors, shows a friendly fallback UI ("Something went wrong", error message, "Try again" button) instead of a blank screen.
+- Logs to console with `[ErrorBoundary - PT Dashboard]` / `[ErrorBoundary - Client Portal]` label for triage.
+
 ### Fix (2026-06-19 — Automated Audit — 1 Bug Fixed)
 
 **BUG-48 (RESOLVED)**: `GET /api/sessions`, `GET /api/pt/adherence`, and `GET /api/portal/records` returned 500 for non-UUID `clientId` query params.

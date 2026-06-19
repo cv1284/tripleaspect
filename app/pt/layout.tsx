@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import PTNav from '@/components/pt/PTNav';
 import BugReportButton from '@/components/pt/BugReportButton';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 export default async function PTLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
@@ -26,7 +27,9 @@ export default async function PTLayout({ children }: { children: React.ReactNode
       />
       {/* pt-14 / pb-16 reserve space for mobile fixed header + bottom nav; lg resets to 0 */}
       <main className="flex-1 overflow-y-auto min-w-0 pt-14 lg:pt-0 pb-16 lg:pb-0">
-        {children}
+        <ErrorBoundary label="PT Dashboard">
+          {children}
+        </ErrorBoundary>
       </main>
       <BugReportButton userId={user.id} userEmail={user.email ?? ''} />
     </div>
