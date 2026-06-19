@@ -4,6 +4,13 @@ All notable changes to brigid.pro are documented here.
 
 ## [Unreleased]
 
+### Fix (2026-06-19 — Automated Audit — 1 Bug Fixed)
+
+**BUG-48 (RESOLVED)**: `GET /api/sessions`, `GET /api/pt/adherence`, and `GET /api/portal/records` returned 500 for non-UUID `clientId` query params.
+- **Root cause**: All three routes accepted `clientId` from query params and passed it directly to Supabase `.eq('client_id', clientId)` without UUID validation. PostgreSQL throws "invalid input syntax for type uuid" for non-UUID strings, which bubbled up as an unhandled 500.
+- **Fix**: Added `isValidUuid(clientId)` guard (returning 400) to all three routes, matching the pattern already applied to `portal/checkin` (BUG-35, 2026-06-14).
+- **Files**: `app/api/sessions/route.ts`, `app/api/pt/adherence/route.ts`, `app/api/portal/records/route.ts`
+
 ### Fixes + Feature (2026-06-18 — Automated Audit — Scenario B: 5 Bugs Fixed + 1 Feature)
 
 **BUG-43 (RESOLVED)**: Template library showed "Unknown exercise" for all template items.

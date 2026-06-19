@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { isValidUuid } from '@/lib/utils';
 
 // GET /api/sessions?clientId=<uuid>
 // Returns all sessions a PT has created for a specific client.
@@ -17,6 +18,7 @@ export async function GET(req: NextRequest) {
 
   const clientId = req.nextUrl.searchParams.get('clientId');
   if (!clientId) return NextResponse.json({ error: 'clientId required' }, { status: 400 });
+  if (!isValidUuid(clientId)) return NextResponse.json({ error: 'Invalid clientId' }, { status: 400 });
 
   // Confirm this PT has an agreement with the client
   const { data: agreement } = await supabase

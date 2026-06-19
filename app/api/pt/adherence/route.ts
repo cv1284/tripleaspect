@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { isValidUuid } from '@/lib/utils';
 
 export interface WeekAdherence {
   week_start:  string;   // ISO date of Monday
@@ -24,6 +25,7 @@ export async function GET(req: NextRequest) {
 
   const clientId = req.nextUrl.searchParams.get('clientId');
   if (!clientId) return NextResponse.json({ error: 'clientId required' }, { status: 400 });
+  if (!isValidUuid(clientId)) return NextResponse.json({ error: 'Invalid clientId' }, { status: 400 });
 
   const weeks = Math.min(Math.max(parseInt(req.nextUrl.searchParams.get('weeks') ?? '12'), 1), 52);
 

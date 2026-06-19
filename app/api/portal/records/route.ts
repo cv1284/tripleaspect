@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { isValidUuid } from '@/lib/utils';
 
 export interface PersonalRecord {
   exercise_id:   string;
@@ -24,6 +25,7 @@ export async function GET(req: NextRequest) {
     .from('profiles').select('role').eq('id', user.id).single();
 
   const clientId = req.nextUrl.searchParams.get('clientId') ?? user.id;
+  if (!isValidUuid(clientId)) return NextResponse.json({ error: 'Invalid clientId' }, { status: 400 });
 
   if (clientId !== user.id) {
     if (profile?.role !== 'pt') {
