@@ -47,21 +47,29 @@ function SessionHeader({ session }: { session: Session }) {
 // ─── Complete Button ──────────────────────────────────────
 
 function CompleteButton({
-  sessionId, isCompleted, onComplete,
+  sessionId, isCompleted, clientNotes: savedNotes, onComplete,
 }: {
-  sessionId:   string;
-  isCompleted: boolean;
-  onComplete:  () => void;
+  sessionId:    string;
+  isCompleted:  boolean;
+  clientNotes:  string | null;
+  onComplete:   () => void;
 }) {
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState<string | null>(null);
+  const [loading,       setLoading]       = useState(false);
+  const [error,         setError]         = useState<string | null>(null);
+  const [notes,         setNotes]         = useState('');
+  const [submittedNote, setSubmittedNote] = useState<string | null>(null);
 
   async function handleComplete() {
     if (isCompleted || loading) return;
     setLoading(true);
     setError(null);
+    const trimmed = notes.trim();
 
-    const res = await fetch(`/api/sessions/${sessionId}/complete`, { method: 'POST' });
+    const res = await fetch(`/api/sessions/${sessionId}/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notes: trimmed || undefined }),
+    });
     setLoading(false);
 
     if (!res.ok) {
@@ -69,20 +77,36 @@ function CompleteButton({
       setError(body.error ?? 'Failed to record completion');
       return;
     }
+    if (trimmed) setSubmittedNote(trimmed);
     onComplete();
   }
 
+  const displayNote = submittedNote ?? savedNotes;
+
   if (isCompleted) {
     return (
-      <div className="w-full py-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center gap-3">
-        <span className="text-emerald-400 text-xl">✓</span>
-        <span className="text-emerald-400 font-semibold text-lg">Session Complete</span>
+      <div className="space-y-2">
+        <div className="w-full py-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center gap-3">
+          <span className="text-emerald-400 text-xl">✓</span>
+          <span className="text-emerald-400 font-semibold text-lg">Session Complete</span>
+        </div>
+        {displayNote && (
+          <p className="text-xs font-mono text-slate-500 italic text-center px-2">&ldquo;{displayNote}&rdquo;</p>
+        )}
       </div>
     );
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
+      <textarea
+        value={notes}
+        onChange={e => setNotes(e.target.value)}
+        maxLength={500}
+        rows={2}
+        placeholder="How did it feel? (optional)"
+        className="w-full bg-surface-2 border border-surface-border rounded-xl px-4 py-3 text-sm text-slate-300 placeholder:text-slate-600 font-mono resize-none focus:outline-none focus:border-indigo-500/50 transition-colors"
+      />
       {error && (
         <p className="text-xs font-mono text-red-400 text-center">{error}</p>
       )}
@@ -222,6 +246,7 @@ export default function SessionView({ session, agreement, client, ptEmail }: Pro
               <CompleteButton
                 sessionId={session.id}
                 isCompleted={completed}
+                clientNotes={session.client_notes ?? null}
                 onComplete={() => setCompleted(true)}
               />
             </div>

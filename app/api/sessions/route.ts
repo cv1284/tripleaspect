@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
 
   const { data: sessions, error } = await supabase
     .from('sessions')
-    .select('id, title, category, scheduled_date, completed_at')
+    .select('id, title, category, scheduled_date, completed_at, client_notes')
     .eq('client_id', clientId)
     .eq('pt_id', user.id)
     .order('scheduled_date', { ascending: false });

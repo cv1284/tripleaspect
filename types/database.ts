@@ -89,6 +89,7 @@ export interface Session {
   scheduled_date: string | null;
   completed_at:   string | null;
   notes:          string | null;
+  client_notes?:  string | null;
   created_at:     string;
   updated_at:     string;
   // Joined relations

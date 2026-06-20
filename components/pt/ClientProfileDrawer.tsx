@@ -169,6 +169,7 @@ interface SessionRow {
   category:       string;
   scheduled_date: string | null;
   completed_at:   string | null;
+  client_notes:   string | null;
 }
 
 interface WeekAdherence {
@@ -731,6 +732,11 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
                             {s.scheduled_date ?? 'Unscheduled'}
                             {isDone && <span className="ml-2 text-emerald-500">✓ Done</span>}
                           </p>
+                          {s.client_notes && (
+                            <p className="text-2xs font-mono text-slate-500 italic mt-0.5 truncate">
+                              &ldquo;{s.client_notes}&rdquo;
+                            </p>
+                          )}
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
                           <Link

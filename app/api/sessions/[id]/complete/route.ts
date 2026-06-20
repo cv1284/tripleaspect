@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { escapeHtml } from '@/lib/utils';
+import { escapeHtml, readJsonBody } from '@/lib/utils';
 
 interface Params { params: Promise<{ id: string }> }
 
@@ -30,11 +30,15 @@ export async function POST(req: NextRequest, { params }: Params) {
     return NextResponse.json({ message: 'Already completed', completed_at: session.completed_at });
   }
 
+  const body        = await readJsonBody(req);
+  const rawNotes    = (body as Record<string, unknown> | null)?.notes;
+  const clientNotes = typeof rawNotes === 'string' ? rawNotes.trim().slice(0, 500) || null : null;
+
   const completedAt = new Date().toISOString();
 
   const { error } = await supabase
     .from('sessions')
-    .update({ completed_at: completedAt })
+    .update({ completed_at: completedAt, client_notes: clientNotes })
     .eq('id', sessionId);
 
   if (error) {
