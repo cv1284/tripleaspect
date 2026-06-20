@@ -27,7 +27,7 @@ export default async function SessionBuilderPage({ searchParams }: Props) {
   const { data: exercises } = await supabase
     .from('exercises')
     .select('*')
-    .or(`is_custom.eq.false,created_by_pt_id.eq.${user.id}`)
+    .or(`is_custom.eq.false,created_by_pt_id.eq.${user.id},is_shared.eq.true`)
     .order('category')
     .order('name');
 

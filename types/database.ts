@@ -28,6 +28,7 @@ export interface Exercise {
   default_video_url:  string | null;  // Public CDN GIF / hosted video fallback
   custom_youtube_url: string | null;  // PT YouTube override (resolved by lib/youtube.ts)
   is_custom:          boolean;
+  is_shared:          boolean;
   created_by_pt_id:   string | null;
   coaching_cues:      string | null;
   tags:               string[] | null;

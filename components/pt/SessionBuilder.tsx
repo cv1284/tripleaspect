@@ -74,11 +74,12 @@ interface Props {
 // ─── Exercise Picker Modal ────────────────────────────────
 
 function ExercisePicker({
-  exercises, category,
+  exercises, category, ptId,
   onSelect, onClose,
 }: {
   exercises:  Exercise[];
   category:   SessionCategory;
+  ptId:       string;
   onSelect:   (ex: Exercise) => void;
   onClose:    () => void;
 }) {
@@ -91,6 +92,7 @@ function ExercisePicker({
   const [localExercises,  setLocalExercises]  = useState<Exercise[]>(exercises);
   const [deleting,        setDeleting]        = useState<Set<string>>(new Set());
   const [deleteErr,       setDeleteErr]       = useState<string | null>(null);
+  const [sharing,         setSharing]         = useState<Set<string>>(new Set());
 
   const filtered = localExercises.filter(e => {
     if (catFilter !== 'all' && e.category !== catFilter) return false;
@@ -113,6 +115,21 @@ function ExercisePicker({
       return;
     }
     setLocalExercises(prev => prev.filter(e => e.id !== ex.id));
+  }
+
+  async function handleToggleShare(ex: Exercise, e: React.MouseEvent) {
+    e.stopPropagation();
+    setSharing(prev => new Set(prev).add(ex.id));
+    const res = await fetch(`/api/exercises/${ex.id}`, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ is_shared: !ex.is_shared }),
+    });
+    setSharing(prev => { const next = new Set(prev); next.delete(ex.id); return next; });
+    if (res.ok) {
+      const updated = await res.json() as Exercise;
+      setLocalExercises(prev => prev.map(e => e.id === updated.id ? updated : e));
+    }
   }
 
   async function handleCreate() {
@@ -207,6 +224,9 @@ function ExercisePicker({
               filtered.map(ex => {
                 const cfg        = CATEGORY_CONFIG[ex.category];
                 const isDeleting = deleting.has(ex.id);
+                const isSharing  = sharing.has(ex.id);
+                const isOwned    = ex.is_custom && ex.created_by_pt_id === ptId;
+                const isCommunity = ex.is_custom && ex.is_shared && !isOwned;
                 return (
                   <div
                     key={ex.id}
@@ -223,26 +243,51 @@ function ExercisePicker({
                         {ex.tags && (
                           <p className="text-2xs font-mono text-slate-600 truncate">{ex.tags.join(' · ')}</p>
                         )}
-                        {ex.is_custom && (
-                          <span className="text-2xs font-mono text-indigo-500">custom</span>
-                        )}
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {isOwned && (
+                            <span className="text-2xs font-mono text-indigo-500">custom</span>
+                          )}
+                          {isCommunity && (
+                            <span className="text-2xs font-mono text-emerald-500">community</span>
+                          )}
+                          {isOwned && ex.is_shared && (
+                            <span className="text-2xs font-mono text-emerald-500/70">shared</span>
+                          )}
+                        </div>
                       </div>
                       <span className={`text-2xs font-mono flex-shrink-0 ${cfg.color} ${cfg.bg} px-2 py-0.5 rounded`}>
                         {cfg.label}
                       </span>
                     </button>
-                    {ex.is_custom && (
-                      <button
-                        type="button"
-                        onClick={e => handleDelete(ex, e)}
-                        disabled={isDeleting}
-                        title="Delete custom exercise"
-                        className="flex-shrink-0 px-3 py-3 text-slate-600 hover:text-red-400 disabled:opacity-30 transition-colors text-sm"
-                      >
-                        {isDeleting ? (
-                          <span className="w-3 h-3 border border-slate-600 border-t-red-400 rounded-full animate-spin inline-block" />
-                        ) : '×'}
-                      </button>
+                    {isOwned && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={e => handleToggleShare(ex, e)}
+                          disabled={isSharing}
+                          title={ex.is_shared ? 'Unshare from community' : 'Share with all PTs'}
+                          className={`flex-shrink-0 px-2 py-3 text-xs font-mono transition-colors disabled:opacity-30 ${
+                            ex.is_shared
+                              ? 'text-emerald-400 hover:text-emerald-300'
+                              : 'text-slate-600 hover:text-emerald-400'
+                          }`}
+                        >
+                          {isSharing ? (
+                            <span className="w-3 h-3 border border-slate-600 border-t-emerald-400 rounded-full animate-spin inline-block" />
+                          ) : ex.is_shared ? '⇡' : '⇡'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={e => handleDelete(ex, e)}
+                          disabled={isDeleting}
+                          title="Delete custom exercise"
+                          className="flex-shrink-0 px-3 py-3 text-slate-600 hover:text-red-400 disabled:opacity-30 transition-colors text-sm"
+                        >
+                          {isDeleting ? (
+                            <span className="w-3 h-3 border border-slate-600 border-t-red-400 rounded-full animate-spin inline-block" />
+                          ) : '×'}
+                        </button>
+                      </>
                     )}
                   </div>
                 );
@@ -1099,6 +1144,7 @@ export default function SessionBuilder({
         <ExercisePicker
           exercises={exercises}
           category={category}
+          ptId={ptId}
           onSelect={addExercise}
           onClose={() => setShowPicker(false)}
         />
