@@ -3,6 +3,7 @@ import { redirect }     from 'next/navigation';
 import { Session }      from '@/types/database';
 import { CATEGORY_CONFIG } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
+import PortalNav from '@/components/client/PortalNav';
 
 export const dynamic = 'force-dynamic';
 
@@ -290,6 +291,7 @@ export default async function HistoryPage({ params }: Props) {
         )}
 
       </main>
+      <PortalNav clientId={clientId} />
     </div>
   );
 }

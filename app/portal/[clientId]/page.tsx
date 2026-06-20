@@ -5,6 +5,7 @@ import { Session, ClientAgreement, Profile, SessionCategory, isOnboardingComplet
 import SessionView       from '@/components/client/SessionView';
 import PortalBanners     from '@/components/client/PortalBanners';
 import ClientOnboarding  from '@/components/client/ClientOnboarding';
+import PortalNav         from '@/components/client/PortalNav';
 import { CATEGORY_CONFIG } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 
@@ -247,16 +248,21 @@ export default async function ClientPortalPage({ params }: Props) {
             </div>
           )}
         </main>
+
+        <PortalNav clientId={clientId} />
       </div>
     );
   }
 
   return (
-    <SessionView
-      session={session as Session}
-      agreement={agreement as ClientAgreement}
-      client={client as Profile}
-      ptEmail={ptEmail}
-    />
+    <>
+      <SessionView
+        session={session as Session}
+        agreement={agreement as ClientAgreement}
+        client={client as Profile}
+        ptEmail={ptEmail}
+      />
+      <PortalNav clientId={clientId} />
+    </>
   );
 }

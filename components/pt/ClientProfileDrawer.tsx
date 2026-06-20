@@ -178,6 +178,16 @@ interface WeekAdherence {
   rate:       number;
 }
 
+interface CheckinRow {
+  id:         string;
+  sleep:      number;
+  stress:     number;
+  soreness:   number;
+  notes:      string | null;
+  session_id: string | null;
+  created_at: string;
+}
+
 const CATEGORY_ICONS: Record<string, string> = {
   healing: '◈', forging: '⬡', verse: '◎',
 };
@@ -204,6 +214,8 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
   const [scheduleReason,   setScheduleReason]   = useState('');
   const [adherence,        setAdherence]        = useState<WeekAdherence[]>([]);
   const [adherenceLoading, setAdherenceLoading] = useState(false);
+  const [checkins,         setCheckins]         = useState<CheckinRow[]>([]);
+  const [checkinsLoading,  setCheckinsLoading]  = useState(false);
 
   // Sync form when client changes
   useEffect(() => {
@@ -214,6 +226,7 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
       setSuccess(false);
       setSessions([]);
       setAdherence([]);
+      setCheckins([]);
     }
   }, [client]);
 
@@ -224,12 +237,15 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
     }
   }, [tab, client]);
 
-  // Fetch adherence when overview tab opens
+  // Fetch adherence + check-ins whenever the overview tab becomes active for a client.
+  // Runs on client change (fresh open) and on tab switch back to overview.
   useEffect(() => {
-    if (tab === 'overview' && client && adherence.length === 0 && !adherenceLoading) {
+    if (tab === 'overview' && client) {
       fetchAdherence();
+      fetchCheckins();
     }
-  }, [tab, client]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, client?.id]);
 
   async function fetchAdherence() {
     if (!client) return;
@@ -238,6 +254,15 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
     const data: WeekAdherence[] = res.ok ? await res.json() : [];
     setAdherence(data);
     setAdherenceLoading(false);
+  }
+
+  async function fetchCheckins() {
+    if (!client) return;
+    setCheckinsLoading(true);
+    const res = await fetch(`/api/portal/checkin?clientId=${client.id}`);
+    const data: CheckinRow[] = res.ok ? await res.json() : [];
+    setCheckins(data);
+    setCheckinsLoading(false);
   }
 
   async function fetchSessions() {
@@ -603,6 +628,57 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
 
                 {!adherenceLoading && adherence.length === 0 && (
                   <p className="text-xs font-mono text-slate-600 text-center py-3">No session data yet</p>
+                )}
+              </div>
+
+              {/* Recent check-ins */}
+              <div className="p-4 rounded-lg bg-surface-2 border border-surface-border">
+                <p className="section-header mb-3">Recent Check-ins</p>
+                {checkinsLoading && (
+                  <div className="flex justify-center py-4">
+                    <span className="w-4 h-4 border-2 border-slate-600 border-t-indigo-400 rounded-full animate-spin" />
+                  </div>
+                )}
+                {!checkinsLoading && checkins.length === 0 && (
+                  <p className="text-xs font-mono text-slate-600 text-center py-3">No check-ins yet</p>
+                )}
+                {!checkinsLoading && checkins.length > 0 && (
+                  <div className="space-y-2">
+                    {checkins.slice(0, 5).map(c => {
+                      const scoreColor = (n: number) =>
+                        n >= 4 ? 'text-emerald-400' : n === 3 ? 'text-amber-400' : 'text-red-400';
+                      const scoreBar = (n: number) =>
+                        n >= 4 ? 'bg-emerald-500/60' : n === 3 ? 'bg-amber-500/60' : 'bg-red-500/50';
+                      const date = new Date(c.created_at).toLocaleDateString('en-GB', {
+                        day: 'numeric', month: 'short',
+                      });
+                      return (
+                        <div key={c.id} className="rounded-lg bg-surface-3 border border-surface-border px-3 py-2.5">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-2xs font-mono text-slate-500">{date}</span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            {([['Sleep', c.sleep], ['Stress', c.stress], ['Soreness', c.soreness]] as [string, number][]).map(([label, val]) => (
+                              <div key={label} className="text-center">
+                                <div className="flex justify-center gap-0.5 mb-1">
+                                  {[1,2,3,4,5].map(i => (
+                                    <div key={i} className={`w-2.5 h-2.5 rounded-sm ${i <= val ? scoreBar(val) : 'bg-surface-4'}`} />
+                                  ))}
+                                </div>
+                                <span className={`text-2xs font-mono font-semibold ${scoreColor(val)}`}>{val}</span>
+                                <span className="text-2xs font-mono text-slate-600"> {label}</span>
+                              </div>
+                            ))}
+                          </div>
+                          {c.notes && (
+                            <p className="mt-2 text-2xs font-mono text-slate-500 italic border-t border-surface-border pt-1.5">
+                              {c.notes}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             </>

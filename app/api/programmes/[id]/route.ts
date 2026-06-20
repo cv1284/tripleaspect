@@ -52,6 +52,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+  if (profile?.role !== 'pt') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
   if (!isValidUuid(id)) return NextResponse.json({ error: 'Programme not found' }, { status: 404 });
 
   const body = await readJsonBody(req);
@@ -95,6 +98,9 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { data: delProfile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+  if (delProfile?.role !== 'pt') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   if (!isValidUuid(id)) return NextResponse.json({ error: 'Programme not found' }, { status: 404 });
 

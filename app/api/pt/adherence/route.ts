@@ -35,13 +35,15 @@ export async function GET(req: NextRequest) {
     .eq('pt_id', user.id).eq('client_id', clientId).maybeSingle();
   if (!agreement) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  // Compute the Monday `weeks` weeks ago
-  const now    = new Date();
-  const monday = new Date(now);
-  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7)); // this Monday
-  monday.setHours(0, 0, 0, 0);
-  const rangeStart = new Date(monday);
-  rangeStart.setDate(rangeStart.getDate() - (weeks - 1) * 7);
+  // Compute the Monday `weeks` weeks ago — all arithmetic in UTC to match
+  // how session scheduled_dates are parsed in the loop below (T00:00:00Z).
+  const now = new Date();
+  const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const dayOfWeekUTC = (todayUTC.getUTCDay() + 6) % 7; // 0 = Mon
+  const thisMonday = new Date(todayUTC);
+  thisMonday.setUTCDate(thisMonday.getUTCDate() - dayOfWeekUTC);
+  const rangeStart = new Date(thisMonday);
+  rangeStart.setUTCDate(rangeStart.getUTCDate() - (weeks - 1) * 7);
   const rangeStartStr = rangeStart.toISOString().split('T')[0];
 
   const { data: sessions, error } = await supabase
@@ -59,7 +61,7 @@ export async function GET(req: NextRequest) {
 
   for (let i = 0; i < weeks; i++) {
     const d = new Date(rangeStart);
-    d.setDate(d.getDate() + i * 7);
+    d.setUTCDate(d.getUTCDate() + i * 7);
     weekMap.set(d.toISOString().split('T')[0], { scheduled: 0, completed: 0 });
   }
 
