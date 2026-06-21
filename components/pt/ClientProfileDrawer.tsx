@@ -196,6 +196,118 @@ const CATEGORY_COLORS: Record<string, string> = {
   healing: 'text-emerald-400', forging: 'text-amber-400', verse: 'text-indigo-400',
 };
 
+// ─── Compliance Heatmap ───────────────────────────────────
+
+const HEATMAP_WEEKS = 8;
+const HEATMAP_DAYS  = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+function ComplianceHeatmap({ sessions, loading }: { sessions: SessionRow[]; loading: boolean }) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Monday of the current week
+  const dow = today.getDay();
+  const thisMonday = new Date(today);
+  thisMonday.setDate(today.getDate() + (dow === 0 ? -6 : 1 - dow));
+
+  // First Monday of the grid
+  const gridStart = new Date(thisMonday);
+  gridStart.setDate(thisMonday.getDate() - (HEATMAP_WEEKS - 1) * 7);
+
+  // Index sessions by scheduled_date (YYYY-MM-DD)
+  const byDate = new Map<string, SessionRow[]>();
+  for (const s of sessions) {
+    if (!s.scheduled_date) continue;
+    byDate.set(s.scheduled_date, [...(byDate.get(s.scheduled_date) ?? []), s]);
+  }
+
+  function cellInfo(dateStr: string): { color: string; tooltip: string } {
+    const day = byDate.get(dateStr);
+    if (!day?.length) return { color: 'bg-surface-3', tooltip: '' };
+
+    const cellDate = new Date(dateStr + 'T00:00:00');
+    const allDone  = day.every(s => !!s.completed_at);
+    const someDone = day.some(s  => !!s.completed_at);
+    const isFuture = cellDate > today;
+
+    const tooltip = day
+      .map(s => `${s.completed_at ? '✓' : isFuture ? '○' : '✗'} ${s.title}`)
+      .join(' · ');
+
+    if (allDone)        return { color: 'bg-emerald-500/70', tooltip };
+    if (someDone)       return { color: 'bg-emerald-500/35', tooltip };
+    if (isFuture)       return { color: 'bg-amber-500/60',   tooltip };
+    return               { color: 'bg-red-500/50',            tooltip };
+  }
+
+  const weeks = Array.from({ length: HEATMAP_WEEKS }, (_, w) => {
+    const monday = new Date(gridStart);
+    monday.setDate(gridStart.getDate() + w * 7);
+    const label = monday.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    const days = Array.from({ length: 7 }, (_, d) => {
+      const date = new Date(monday);
+      date.setDate(monday.getDate() + d);
+      const dateStr = date.toISOString().split('T')[0];
+      return { dateStr, ...cellInfo(dateStr) };
+    });
+    return { key: monday.toISOString(), label, days };
+  });
+
+  return (
+    <div>
+      {/* Day headers */}
+      <div className="flex gap-1 mb-1 pl-[52px]">
+        {HEATMAP_DAYS.map((d, i) => (
+          <div key={i} className="flex-1 text-center text-2xs font-mono text-slate-600">{d}</div>
+        ))}
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-4">
+          <span className="w-4 h-4 border-2 border-slate-600 border-t-indigo-400 rounded-full animate-spin" />
+        </div>
+      ) : (
+        <div className="space-y-1">
+          {weeks.map(({ key, label, days }) => (
+            <div key={key} className="flex items-center gap-1">
+              <span className="w-12 flex-shrink-0 text-right pr-1 text-2xs font-mono text-slate-600">{label}</span>
+              {days.map(({ dateStr, color, tooltip }) => (
+                <div key={dateStr} className={`flex-1 h-5 rounded-sm ${color} group relative`}>
+                  {tooltip && (
+                    <div className="absolute bottom-full mb-1.5 left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col items-center z-10 pointer-events-none">
+                      <div className="bg-surface-0 border border-surface-border rounded px-2 py-1 text-2xs font-mono text-slate-300 whitespace-nowrap shadow-lg max-w-52 truncate">
+                        {tooltip}
+                      </div>
+                      <div className="w-1.5 h-1.5 bg-surface-0 border-r border-b border-surface-border rotate-45 -mt-1" />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Legend */}
+      {!loading && (
+        <div className="flex items-center gap-3 mt-2 flex-wrap">
+          {[
+            { color: 'bg-emerald-500/70', label: 'Done'     },
+            { color: 'bg-amber-500/60',   label: 'Upcoming' },
+            { color: 'bg-red-500/50',     label: 'Missed'   },
+            { color: 'bg-surface-3',      label: 'None'     },
+          ].map(({ color, label }) => (
+            <span key={label} className="flex items-center gap-1 text-2xs font-mono text-slate-600">
+              <span className={`w-2.5 h-2.5 rounded-sm ${color} inline-block`} />
+              {label}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ClientProfileDrawer({ client, onClose, onSaved, onDeleted }: Props) {
   const [tab,              setTab]              = useState<Tab>('overview');
   const [form,             setForm]             = useState<FormState | null>(null);
@@ -213,10 +325,12 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
   const [confirmSchedule,  setConfirmSchedule]  = useState(false);
   const [scheduling,       setScheduling]       = useState(false);
   const [scheduleReason,   setScheduleReason]   = useState('');
-  const [adherence,        setAdherence]        = useState<WeekAdherence[]>([]);
-  const [adherenceLoading, setAdherenceLoading] = useState(false);
-  const [checkins,         setCheckins]         = useState<CheckinRow[]>([]);
-  const [checkinsLoading,  setCheckinsLoading]  = useState(false);
+  const [adherence,          setAdherence]          = useState<WeekAdherence[]>([]);
+  const [adherenceLoading,   setAdherenceLoading]   = useState(false);
+  const [checkins,           setCheckins]           = useState<CheckinRow[]>([]);
+  const [checkinsLoading,    setCheckinsLoading]    = useState(false);
+  const [complianceSessions, setComplianceSessions] = useState<SessionRow[]>([]);
+  const [complianceLoading,  setComplianceLoading]  = useState(false);
 
   // Sync form when client changes
   useEffect(() => {
@@ -228,6 +342,7 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
       setSessions([]);
       setAdherence([]);
       setCheckins([]);
+      setComplianceSessions([]);
     }
   }, [client]);
 
@@ -244,6 +359,7 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
     if (tab === 'overview' && client) {
       fetchAdherence();
       fetchCheckins();
+      fetchComplianceSessions();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, client?.id]);
@@ -264,6 +380,15 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
     const data: CheckinRow[] = res.ok ? await res.json() : [];
     setCheckins(data);
     setCheckinsLoading(false);
+  }
+
+  async function fetchComplianceSessions() {
+    if (!client) return;
+    setComplianceLoading(true);
+    const res = await fetch(`/api/sessions?clientId=${client.id}`);
+    const data: SessionRow[] = res.ok ? await res.json() : [];
+    setComplianceSessions(data);
+    setComplianceLoading(false);
   }
 
   async function fetchSessions() {
@@ -630,6 +755,12 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
                 {!adherenceLoading && adherence.length === 0 && (
                   <p className="text-xs font-mono text-slate-600 text-center py-3">No session data yet</p>
                 )}
+              </div>
+
+              {/* Programme compliance heatmap */}
+              <div className="p-4 rounded-lg bg-surface-2 border border-surface-border">
+                <p className="section-header mb-3">Session Compliance (8 wks)</p>
+                <ComplianceHeatmap sessions={complianceSessions} loading={complianceLoading} />
               </div>
 
               {/* Recent check-ins */}
