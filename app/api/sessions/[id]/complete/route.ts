@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { escapeHtml, readJsonBody } from '@/lib/utils';
+import { escapeHtml, isValidUuid, readJsonBody } from '@/lib/utils';
 
 interface Params { params: Promise<{ id: string }> }
 
 export async function POST(req: NextRequest, { params }: Params) {
   const { id: sessionId } = await params;
+  if (!isValidUuid(sessionId)) return NextResponse.json({ error: 'Invalid session id' }, { status: 400 });
   const supabase          = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();

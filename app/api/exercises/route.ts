@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { readJsonBody } from '@/lib/utils';
+import { readJsonBody, stripHtmlTags } from '@/lib/utils';
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -21,7 +21,9 @@ export async function POST(req: NextRequest) {
 
   const validCategories = ['healing', 'forging', 'verse'];
   if (typeof name !== 'string' || !name.trim())              return NextResponse.json({ error: 'Name is required' }, { status: 400 });
-  if (name.trim().length > 100)               return NextResponse.json({ error: 'Exercise name must be 100 characters or fewer' }, { status: 400 });
+  const cleanName = stripHtmlTags(name);
+  if (!cleanName)                             return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+  if (cleanName.length > 100)                 return NextResponse.json({ error: 'Exercise name must be 100 characters or fewer' }, { status: 400 });
   if (!category)                              return NextResponse.json({ error: 'Category is required' }, { status: 400 });
   if (!validCategories.includes(category))    return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
 
@@ -38,7 +40,7 @@ export async function POST(req: NextRequest) {
   const { data, error } = await supabase
     .from('exercises')
     .insert({
-      name:               name.trim(),
+      name:               cleanName,
       category,
       description:        description?.trim() || null,
       coaching_cues:      coaching_cues?.trim() || null,

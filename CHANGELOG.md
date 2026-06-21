@@ -4,6 +4,52 @@ All notable changes to brigid.pro are documented here.
 
 ## [Unreleased]
 
+### Security Fixes (2026-06-21 — Automated Audit — 2 Bugs Fixed)
+
+**BUG-49 (LOW, RESOLVED)**: `POST /api/exercises` — exercise `name` accepted raw HTML tags and stored them verbatim.
+- **Root cause**: The `name` field was trimmed and length-checked but never stripped of HTML. A payload like `{"name":"<script>alert(1)</script>","category":"forging"}` returned 201 and wrote the literal tag string to the DB. While React JSX auto-escapes rendered output in the UI (low client-side risk), the raw name string propagated into the Resend PT alert email `subject:` line (`✓ Client completed <script>…`) and would be visible in future PDF exports, webhooks, or third-party integrations that lack JSX-level escaping.
+- **Fix**: Added `stripHtmlTags(str)` utility to `lib/utils.ts` (strips all `<…>` sequences via regex, trims result). `POST /api/exercises` now runs `stripHtmlTags(name)` before length-checking and storage. A tag-only payload (e.g. `<b></b>`) that strips to empty string now returns `400 "Name is required"`.
+- **Files**: `lib/utils.ts` (new `stripHtmlTags` export), `app/api/exercises/route.ts`
+
+**BUG-50 (LOW, RESOLVED)**: `DELETE /api/sessions/[id]`, `POST /api/sessions/[id]/complete`, and `POST /api/sessions/[id]/duplicate` — malformed UUID path params triggered a raw PostgreSQL `22P02` error response instead of a clean 400.
+- **Root cause**: All three handlers passed `params.id` / `params.id` directly to a Supabase `.eq('id', …)` call on a `uuid` column without an `isValidUuid()` guard. PostgreSQL throws `"invalid input syntax for type uuid: \"…\""` for non-UUID-shaped strings; the error message bubbled through as a 500 with the raw DB error string — leaking internal schema detail.
+- **Fix**: Added `isValidUuid(id)` guard (reusing the existing `lib/utils.ts` helper) as the first operation in each handler, returning `400 {"error":"Invalid session id"}` before any DB query runs.
+- **Files**: `app/api/sessions/[id]/route.ts`, `app/api/sessions/[id]/complete/route.ts`, `app/api/sessions/[id]/duplicate/route.ts`
+
+### Audit Results (2026-06-21)
+
+**Smoke Tests — 9/9 PASS** (Journey 1–5 PT, Journey 6–9 Client/cross-account)
+
+- **J1 Client Directory**: Listed all clients, opened detail drawer — ✓
+- **J2 Exercise Library**: Created "Smoke Test Squat" (custom, forging) — ✓
+- **J3 Session Creation**: Created "Smoke Test Session", added exercise, saved — ✓
+- **J4 Template**: Created "Smoke Test Template" from session — ✓
+- **J5 Programme**: Created "Smoke Test Programme", added Week 1 Day 1 session, assigned to client — ✓
+- **J6 Client Portal Load**: Portal rendered for test client — ✓
+- **J7 Wellbeing Check-In**: Submitted sleep/stress/soreness via portal check-in form — ✓
+- **J8 Session Completion**: Client marked programme session complete (after PT added exercise) — ✓
+- **J9 Cross-Account Verification**: PT confirmed session showed `completed_at` timestamp — ✓
+
+**Data Boundary & Injection Audit:**
+- **Suite A (Happy Path)**: Exercise creation, client invite, session assignment, check-in submission — all ✓
+- **Suite B (Fringe)**: 100-char exercise name passes; 101-char rejected; empty-after-strip name rejected; SQL injection stored as literal (parameterized queries) ✓
+- **Suite C (Injection/IDOR)**: `<script>alert(1)</script>` as exercise name → **BUG-49 found and fixed** (was 201, now stripped before storage). Non-UUID session IDs → **BUG-50 found and fixed** (was 500 + raw DB error, now 400). IDOR on sessions/templates/programmes all 403/404 ✓. Role enforcement (PT-only exercise creation, client-only check-in) ✓.
+
+**Security confirmed this run:**
+- `stripHtmlTags()` now applied to exercise `name` before DB storage — stored XSS vector closed
+- `isValidUuid()` now covers all `sessions/[id]` dynamic params (DELETE, complete POST, duplicate POST)
+- All prior session audit confirmations still hold (checklists from 2026-06-13/14/16/17/18/19)
+- No new `dangerouslySetInnerHTML` usages found
+- Email template (`sessions/[id]/complete`) uses `escapeHtml()` on all interpolated user data ✓
+
+**Database state**: All smoke test artefacts deleted post-audit. "Week 1 Day 1" programme session deleted; "Smoke Test Template" deleted; "Smoke Test Programme" (and its assigned sessions) deleted; wellbeing check-in from Journey 7 deleted. "Smoke Test Session" (a94746ab) and "Smoke Test Squat" exercise (a3e8a798) retained — exercise cannot be deleted while referenced by the kept session.
+
+**Notion sync**: 2 bugs (BUG-49, BUG-50) logged in Brigid.pro defect board and marked Done.
+
+**Scenario**: A — 2 bugs found and resolved. Fewer than 3 defects; no new feature shipped per task spec.
+
+---
+
 ### Features (2026-06-19 — Automated Audit — 2 Features Shipped)
 
 **FEAT-1: Delete custom exercise from exercise picker** (`app/api/exercises/[id]/route.ts`, `components/pt/SessionBuilder.tsx`)

@@ -155,6 +155,14 @@ export function isValidEmail(email: unknown): email is string {
   return typeof email === 'string' && email.length <= 254 && EMAIL_RE.test(email);
 }
 
+// ─── HTML Sanitization ────────────────────────────────────
+// Strips all HTML/XML tags from user-supplied strings before DB storage.
+// Prevents stored XSS if data is ever rendered outside React's JSX escaping
+// (e.g. email templates, PDF exports, third-party integrations).
+export function stripHtmlTags(str: string): string {
+  return str.replace(/<[^>]*>/g, '').trim();
+}
+
 // ─── HTML Escaping ────────────────────────────────────────
 // Use whenever interpolating user data into an HTML string (e.g. email templates).
 export function escapeHtml(str: string | null | undefined): string {
