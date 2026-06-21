@@ -44,9 +44,23 @@ All notable changes to brigid.pro are documented here.
 
 **Database state**: All smoke test artefacts deleted post-audit. "Week 1 Day 1" programme session deleted; "Smoke Test Template" deleted; "Smoke Test Programme" (and its assigned sessions) deleted; wellbeing check-in from Journey 7 deleted. "Smoke Test Session" (a94746ab) and "Smoke Test Squat" exercise (a3e8a798) retained — exercise cannot be deleted while referenced by the kept session.
 
-**Notion sync**: 2 bugs (BUG-49, BUG-50) logged in Brigid.pro defect board and marked Done.
+**Notion sync**: 2 bugs (BUG-49, BUG-50) and FEAT-1 (compliance heatmap) logged in Brigid.pro Roadmap and marked Done.
 
-**Scenario**: A — 2 bugs found and resolved. Fewer than 3 defects; no new feature shipped per task spec.
+**Scenario**: A — 2 bugs found and resolved. 1 feature shipped (compliance heatmap).
+
+### Feature (2026-06-21 — Automated Audit)
+
+**Programme Compliance Heatmap** (`components/pt/ClientProfileDrawer.tsx`)
+- New `ComplianceHeatmap` component on the Overview tab of the Client Profile Drawer, between the 8-week adherence bar chart and recent check-ins.
+- Renders an 8-week Monday-to-Sunday grid. Each cell represents one calendar day:
+  - **Emerald** — all sessions on that day completed
+  - **Emerald (dim)** — some sessions completed, some pending
+  - **Amber** — session(s) scheduled on a future date (not yet due)
+  - **Red** — session(s) were scheduled on a past date and not completed (missed)
+  - **Surface** — no session scheduled
+- Hover tooltip per cell shows session title(s) with ✓/○/✗ status prefix.
+- Sessions fetched lazily on overview tab open via the existing `GET /api/sessions?clientId=` endpoint. Stored in separate `complianceSessions` state so Sessions tab delete/duplicate actions don't pollute the heatmap.
+- No new API route, no new DB migration, no new npm dependencies. Commit `aae9f21`.
 
 ---
 
