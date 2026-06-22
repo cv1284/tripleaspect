@@ -4,6 +4,33 @@ All notable changes to brigid.pro are documented here.
 
 ## [Unreleased]
 
+### Security Fixes (2026-06-22 — Automated Audit — 3 Bugs Fixed)
+
+**BUG-51 (MEDIUM, RESOLVED)**: Stored XSS in programme, template, check-in, bug-report, and photo notes — multiple write endpoints accepted raw HTML in user-facing text fields.
+- **Root cause**: After BUG-49 added `stripHtmlTags` to the exercise endpoint, the same sanitization was not applied to other write endpoints. Programme titles, template titles/notes, check-in notes, session completion notes, bug-report notes, photo notes, and programme-session titles/notes all accepted raw HTML.
+- **Fix**: Applied `stripHtmlTags()` to all user-supplied text fields across 9 API route files. Added post-strip emptiness checks so tag-only payloads (e.g. `<script>alert(1)</script>`) return 400 instead of creating records with empty titles.
+- **Files**: `app/api/programmes/route.ts`, `app/api/programmes/[id]/route.ts`, `app/api/programmes/[id]/save-tree/route.ts`, `app/api/templates/route.ts`, `app/api/templates/[id]/route.ts`, `app/api/portal/checkin/route.ts`, `app/api/portal/checkin/[id]/route.ts`, `app/api/sessions/[id]/complete/route.ts`, `app/api/bug-reports/route.ts`, `app/api/portal/photos/route.ts`
+
+### Audit Results (2026-06-22)
+
+**Smoke Tests — 8/9 (7 PASS, 1 SKIP)**
+
+- **J1 Client Directory**: Client grid, status badges, drawer with all 4 tabs, adherence chart — PASS
+- **J2 Exercise Library**: Created "Smoke Test Squat" (custom, forging), appeared immediately — PASS
+- **J3 Session Creation**: "Smoke Test Session", Forging, scheduled 2026-06-23, saved — PASS
+- **J4 Template**: Saved as "Smoke Test Template" from builder, verified in library — PASS
+- **J5 Programme**: Created 2-week programme, added Monday session, assigned to client (1 session generated) — PASS
+- **J6 Client Portal Load**: Portal rendered, today's session card displayed, no JS errors — PASS
+- **J7 Wellbeing Check-In**: Submitted (sleep=4, stress=2, soreness=3, notes="Smoke test"), confirmed in History — PASS
+- **J8 Session Completion**: SKIP — portal home showed programme-generated session with no exercises (CompleteButton only renders when exercises exist)
+- **J9 Cross-Account**: PT saw client's check-in data (22 Jun · Slp:4 · Str:2 · Srs:3), adherence chart updated — PASS
+
+**Data Boundary Audit**:
+- Exercise: XSS stripped, long names blocked (>100), emoji accepted, invalid category blocked, missing/empty name blocked — all PASS
+- Programme: XSS now stripped (BUG-51 fix), weeks clamped [1,52] — PASS after fix
+- Client: invalid email blocked, missing email blocked — PASS
+- Check-in: role enforcement (PT blocked), scores validated [1-5], UUID validated — PASS (static analysis confirmed notes now stripped)
+
 ### Security Fixes (2026-06-21 — Automated Audit — 2 Bugs Fixed)
 
 **BUG-49 (LOW, RESOLVED)**: `POST /api/exercises` — exercise `name` accepted raw HTML tags and stored them verbatim.

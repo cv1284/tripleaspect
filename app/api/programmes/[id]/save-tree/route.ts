@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { readJsonBody, isValidUuid } from '@/lib/utils';
+import { readJsonBody, isValidUuid, stripHtmlTags } from '@/lib/utils';
 
 interface SessionPayload {
   day_of_week:  number;
@@ -60,9 +60,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         valid.map((s, idx) => ({
           week_id:     week.id,
           day_of_week: s.day_of_week,
-          title:       s.title.trim(),
+          title:       stripHtmlTags(s.title.trim()),
           category:    s.category,
-          notes:       s.notes || null,
+          notes:       typeof s.notes === 'string' ? stripHtmlTags(s.notes) || null : null,
           sort_order:  s.sort_order ?? idx,
           template_id: isValidUuid(s.template_id ?? '') ? s.template_id : null,
         })),

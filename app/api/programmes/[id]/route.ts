@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { readJsonBody, isValidUuid } from '@/lib/utils';
+import { readJsonBody, isValidUuid, stripHtmlTags } from '@/lib/utils';
 
 interface Params { params: Promise<{ id: string }> }
 
@@ -72,7 +72,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if ('title' in patch && (typeof patch.title !== 'string' || !(patch.title as string).trim())) {
     return NextResponse.json({ error: 'Title cannot be empty' }, { status: 400 });
   }
-  if ('title' in patch) patch.title = (patch.title as string).trim();
+  if ('title' in patch) {
+    patch.title = stripHtmlTags((patch.title as string).trim());
+    if (!patch.title) return NextResponse.json({ error: 'Title cannot be empty' }, { status: 400 });
+  }
+  if ('description' in patch && typeof patch.description === 'string') {
+    patch.description = stripHtmlTags(patch.description.trim()) || null;
+  }
 
   const validCategories = ['healing', 'forging', 'verse'];
   if ('category' in patch && patch.category && !validCategories.includes(patch.category as string)) {

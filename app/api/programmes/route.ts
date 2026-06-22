@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { readJsonBody } from '@/lib/utils';
+import { readJsonBody, stripHtmlTags } from '@/lib/utils';
 
 // GET /api/programmes — own programmes + public from others
 export async function GET(_req: NextRequest) {
@@ -32,6 +32,8 @@ export async function POST(req: NextRequest) {
     title?: any; description?: any; category?: any; total_weeks?: any; is_public?: any;
   };
   if (typeof title !== 'string' || !title.trim()) return NextResponse.json({ error: 'Title is required' }, { status: 400 });
+  const cleanTitle = stripHtmlTags(title.trim());
+  if (!cleanTitle) return NextResponse.json({ error: 'Title is required' }, { status: 400 });
 
   const validCategories = ['healing', 'forging', 'verse'];
   if (category && !validCategories.includes(category)) {
@@ -48,8 +50,8 @@ export async function POST(req: NextRequest) {
     .from('programmes')
     .insert({
       pt_id:       user.id,
-      title:       title.trim(),
-      description: description || null,
+      title:       cleanTitle,
+      description: typeof description === 'string' ? stripHtmlTags(description) || null : null,
       category:    category || null,
       total_weeks: weeks,
       is_public:   is_public ?? false,

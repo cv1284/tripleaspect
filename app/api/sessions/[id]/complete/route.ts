@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { escapeHtml, isValidUuid, readJsonBody } from '@/lib/utils';
+import { escapeHtml, isValidUuid, readJsonBody, stripHtmlTags } from '@/lib/utils';
 
 interface Params { params: Promise<{ id: string }> }
 
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   const body        = await readJsonBody(req);
   const rawNotes    = (body as Record<string, unknown> | null)?.notes;
-  const clientNotes = typeof rawNotes === 'string' ? rawNotes.trim().slice(0, 500) || null : null;
+  const clientNotes = typeof rawNotes === 'string' ? stripHtmlTags(rawNotes.trim()).slice(0, 500) || null : null;
 
   const completedAt = new Date().toISOString();
 

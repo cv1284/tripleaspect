@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { readJsonBody, isValidUuid } from '@/lib/utils';
+import { readJsonBody, isValidUuid, stripHtmlTags } from '@/lib/utils';
 
 // POST /api/portal/checkin — client submits a pre-session wellbeing check-in
 export async function POST(req: NextRequest) {
@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
       sleep:      Number(sleep),
       stress:     Number(stress),
       soreness:   Number(soreness),
-      notes:      typeof notes === 'string' ? notes.trim().slice(0, 500) || null : null,
+      notes:      typeof notes === 'string' ? stripHtmlTags(notes.trim()).slice(0, 500) || null : null,
     })
     .select('id, sleep, stress, soreness, notes, session_id, created_at')
     .single();

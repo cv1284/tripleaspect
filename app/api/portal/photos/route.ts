@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient }      from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { stripHtmlTags }     from '@/lib/utils';
 
 const BUCKET        = 'progress-photos';
 const MAX_BYTES     = 10 * 1024 * 1024; // 10 MB
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
       client_id:    user.id,
       storage_path: path,
       public_url:   publicUrl,
-      notes:        typeof notes === 'string' ? notes.trim().slice(0, 500) || null : null,
+      notes:        typeof notes === 'string' ? stripHtmlTags(notes.trim()).slice(0, 500) || null : null,
       taken_at:     dateValue,
     })
     .select('id, public_url, notes, taken_at, created_at')

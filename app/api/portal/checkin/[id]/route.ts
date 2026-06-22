@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { readJsonBody, isValidUuid } from '@/lib/utils';
+import { readJsonBody, isValidUuid, stripHtmlTags } from '@/lib/utils';
 
 export async function PATCH(
   req: NextRequest,
@@ -48,7 +48,7 @@ export async function PATCH(
   }
 
   if (notes !== undefined) {
-    update['notes'] = typeof notes === 'string' ? notes.trim().slice(0, 500) || null : null;
+    update['notes'] = typeof notes === 'string' ? stripHtmlTags(notes.trim()).slice(0, 500) || null : null;
   }
 
   if (Object.keys(update).length === 0) {

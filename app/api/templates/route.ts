@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { readJsonBody } from '@/lib/utils';
+import { readJsonBody, stripHtmlTags } from '@/lib/utils';
 
 // GET /api/templates
 // Returns the PT's own templates + all public templates from other PTs.
@@ -66,6 +66,8 @@ export async function POST(req: NextRequest) {
 
   const validCategories = ['healing', 'forging', 'verse'];
   if (typeof title !== 'string' || !title.trim()) return NextResponse.json({ error: 'Title required' }, { status: 400 });
+  const cleanTitle = stripHtmlTags(title.trim());
+  if (!cleanTitle) return NextResponse.json({ error: 'Title required' }, { status: 400 });
   if (!category || !validCategories.includes(category)) {
     return NextResponse.json({ error: 'category must be one of: healing, forging, verse' }, { status: 400 });
   }
@@ -81,9 +83,9 @@ export async function POST(req: NextRequest) {
     .insert({
       pt_id:    user.id,
       pt_name:  profile.full_name ?? null,
-      title:    title.trim(),
+      title:    cleanTitle,
       category,
-      notes:     notes?.trim() || null,
+      notes:     typeof notes === 'string' ? stripHtmlTags(notes.trim()) || null : null,
       is_public: is_public ?? false,
     })
     .select('id')

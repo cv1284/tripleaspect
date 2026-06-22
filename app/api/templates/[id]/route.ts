@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { readJsonBody, isValidUuid } from '@/lib/utils';
+import { readJsonBody, isValidUuid, stripHtmlTags } from '@/lib/utils';
 
 interface Params { params: Promise<{ id: string }> }
 
@@ -29,7 +29,11 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     if (typeof patch.title !== 'string' || !(patch.title as string).trim()) {
       return NextResponse.json({ error: 'Title cannot be empty' }, { status: 400 });
     }
-    patch.title = (patch.title as string).trim();
+    patch.title = stripHtmlTags((patch.title as string).trim());
+    if (!patch.title) return NextResponse.json({ error: 'Title cannot be empty' }, { status: 400 });
+  }
+  if ('notes' in patch && typeof patch.notes === 'string') {
+    patch.notes = stripHtmlTags(patch.notes.trim()) || null;
   }
 
   const { data, error } = await supabase

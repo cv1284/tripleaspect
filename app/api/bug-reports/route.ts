@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient }      from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { bugRefLabel }       from '@/types/database';
-import { escapeHtml, readJsonBody } from '@/lib/utils';
+import { escapeHtml, readJsonBody, stripHtmlTags } from '@/lib/utils';
 
 // POST /api/bug-reports — any authenticated user
 export async function POST(req: NextRequest) {
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
       user_id:        user.id,
       url,
       page_title:     page_title || url,
-      notes:          typeof notes === 'string' ? notes.trim().slice(0, 2000) || null : null,
+      notes:          typeof notes === 'string' ? stripHtmlTags(notes.trim()).slice(0, 2000) || null : null,
       report_type:    report_type === 'feature' ? 'feature' : 'bug',
       screenshot_url: screenshot_url || null,
       user_agent:     req.headers.get('user-agent'),
