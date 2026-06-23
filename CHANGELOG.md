@@ -4,6 +4,38 @@ All notable changes to brigid.pro are documented here.
 
 ## [Unreleased]
 
+### Nightly Audit (2026-06-23 — 4 Bugs Fixed, 1 Feature Shipped)
+
+**BUG-52 (MEDIUM, RESOLVED)**: Portal check-in card reappeared on page reload despite already submitting.
+- **Root cause**: `SessionView.tsx` initialized `checkinComplete = false` client-side without checking server state. On full page reload, the form rendered again.
+- **Fix**: Portal page now queries `wellbeing_checkins` for existing check-in and passes `hasCheckin` prop; state initialized from prop.
+- **Files**: `app/portal/[clientId]/page.tsx`, `components/client/SessionView.tsx`
+
+**BUG-53 (HIGH, RESOLVED)**: Stored XSS in 3 cron email templates.
+- **Root cause**: `flag-inactive`, `session-reminder`, `block-expiry` cron routes interpolated user data into HTML without `escapeHtml()`.
+- **Fix**: Added `escapeHtml()` to all user-derived variables in all three email templates.
+- **Files**: `app/api/cron/flag-inactive/route.ts`, `app/api/cron/session-reminder/route.ts`, `app/api/cron/block-expiry/route.ts`
+
+**BUG-54 (MEDIUM, RESOLVED)**: Exercise API missing length limits on description/coaching_cues/tags.
+- **Root cause**: `POST /api/exercises` validated name (100 chars) but accepted unlimited text in other fields.
+- **Fix**: description/coaching_cues max 2000 chars, URL max 500 chars, max 20 tags each max 50 chars.
+- **Files**: `app/api/exercises/route.ts`
+
+**Feature: Revenue dashboard** on PT Billing page.
+- MRR from active subscriptions, active client count, avg per-client revenue, per-client breakdown table.
+- **Files**: `app/pt/billing/page.tsx`
+
+**Smoke Tests — 9/9 PASS**
+- J1 Client Directory — PASS
+- J2 Exercise Library — PASS (custom exercise created, appeared immediately)
+- J3 Session Creation — PASS (2 sess confirmed in grid)
+- J4 Template — PASS (Smoke Test Template in library)
+- J5 Programme — PASS (created, session added, assigned to client)
+- J6 Client Portal Load — PASS (session card, check-in form, no errors)
+- J7 Wellbeing Check-In — PASS (sleep=4, stress=2, soreness=3, confirmed in History)
+- J8 Session Completion — PASS (✓ Session Complete rendered, History shows timestamp 03:19)
+- J9 Cross-Account — PASS (PT sees 67% adherence, 2 sessions, check-in data)
+
 ### Security Fixes (2026-06-22 — Automated Audit — 3 Bugs Fixed)
 
 **BUG-51 (MEDIUM, RESOLVED)**: Stored XSS in programme, template, check-in, bug-report, and photo notes — multiple write endpoints accepted raw HTML in user-facing text fields.
