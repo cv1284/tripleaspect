@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { signToken } from '@/lib/inactivity-token';
+import { escapeHtml } from '@/lib/utils';
 
 interface FlaggedRow {
   agreement_id: string;
@@ -112,7 +113,7 @@ function buildEmailHtml({
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px 16px;color:#1a1a1a">
-  <p style="font-size:18px;font-weight:600;margin-bottom:8px">Hi ${firstName},</p>
+  <p style="font-size:18px;font-weight:600;margin-bottom:8px">Hi ${escapeHtml(firstName)},</p>
   <p style="margin-bottom:16px">
     Your Brigid.pro coaching account has been inactive for 6 months.
     Unless you take action, <strong>your data will be permanently deleted in 14 days</strong>.

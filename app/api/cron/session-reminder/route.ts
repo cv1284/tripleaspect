@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { escapeHtml } from '@/lib/utils';
 
 interface SessionRow {
   id:         string;
@@ -101,10 +102,10 @@ function buildReminderHtml({
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px 16px;color:#1a1a1a">
-  <p style="font-size:18px;font-weight:600;margin-bottom:8px">Good morning, ${firstName} 👋</p>
+  <p style="font-size:18px;font-weight:600;margin-bottom:8px">Good morning, ${escapeHtml(firstName)} 👋</p>
   <p style="margin-bottom:24px">You have a session scheduled for today:</p>
   <div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:16px;margin-bottom:24px">
-    <p style="margin:0;font-size:16px;font-weight:600;color:#3730a3">${sessionTitle}</p>
+    <p style="margin:0;font-size:16px;font-weight:600;color:#3730a3">${escapeHtml(sessionTitle)}</p>
   </div>
   <a href="https://tripleaspect.fit"
      style="display:inline-block;background:#4f46e5;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">

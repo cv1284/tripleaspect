@@ -114,6 +114,15 @@ export default async function ClientPortalPage({ params }: Props) {
 
   const session    = todaySessions?.[0] ?? null;
   const nextUp     = upcomingSessions?.[0] ?? null;
+
+  const { data: existingCheckin } = session
+    ? await supabase
+        .from('wellbeing_checkins')
+        .select('id')
+        .eq('session_id', session.id)
+        .eq('client_id', clientId)
+        .maybeSingle()
+    : { data: null };
   const ptData     = (agreement as unknown as { pt?: { email: string; full_name: string | null } })?.pt;
   const ptEmail    = ptData?.email;
   const ptName     = ptData?.full_name ?? undefined;
@@ -261,6 +270,7 @@ export default async function ClientPortalPage({ params }: Props) {
         agreement={agreement as ClientAgreement}
         client={client as Profile}
         ptEmail={ptEmail}
+        hasCheckin={!!existingCheckin}
       />
       <PortalNav clientId={clientId} />
     </>

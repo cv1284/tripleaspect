@@ -9,10 +9,11 @@ import WellbeingCheckin from './WellbeingCheckin';
 import { format, parseISO } from 'date-fns';
 
 interface Props {
-  session:   Session;
-  agreement: ClientAgreement;
-  client:    Profile;
-  ptEmail?:  string;
+  session:    Session;
+  agreement:  ClientAgreement;
+  client:     Profile;
+  ptEmail?:   string;
+  hasCheckin?: boolean;
 }
 
 // ─── Header ───────────────────────────────────────────────
@@ -183,9 +184,9 @@ function NoSessionToday({ clientName }: { clientName: string | null }) {
 
 // ─── Main Portal View ─────────────────────────────────────
 
-export default function SessionView({ session, agreement, client, ptEmail }: Props) {
+export default function SessionView({ session, agreement, client, ptEmail, hasCheckin }: Props) {
   const [completed,       setCompleted]       = useState(!!session.completed_at);
-  const [checkinComplete, setCheckinComplete] = useState(false);
+  const [checkinComplete, setCheckinComplete] = useState(!!hasCheckin);
   const items = session.session_items ?? [];
 
   if (!session) {

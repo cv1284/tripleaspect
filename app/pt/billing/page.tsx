@@ -42,20 +42,81 @@ export default async function BillingPage() {
     .filter(i => i.status === 'paid')
     .reduce((sum, i) => sum + i.amount_pence, 0);
 
+  const { data: agreements } = await supabase
+    .from('client_agreements')
+    .select('id, status, agreement_model, manual_price_numeric, currency, client_id, client:profiles!client_agreements_client_id_fkey(full_name)')
+    .eq('pt_id', user.id);
+
+  const activeAgreements = (agreements ?? []).filter(a => a.status === 'active');
+  const subAgreements    = activeAgreements.filter(a => a.agreement_model === 'subscription');
+  const mrr              = subAgreements.reduce((sum, a) => sum + (a.manual_price_numeric ?? 0), 0);
+  const totalActiveRev   = activeAgreements.reduce((sum, a) => sum + (a.manual_price_numeric ?? 0), 0);
+  const avgPerClient     = activeAgreements.length > 0 ? totalActiveRev / activeAgreements.length : 0;
+  const defaultCurrency  = activeAgreements[0]?.currency ?? 'GBP';
+  const currencySymbol   = defaultCurrency === 'GBP' ? '£' : defaultCurrency === 'USD' ? '$' : defaultCurrency === 'EUR' ? '€' : '';
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 pb-28 space-y-8">
       <div>
         <h1 className="text-xl font-semibold text-slate-100">Billing</h1>
         <p className="text-sm font-mono text-slate-500 mt-1">
-          Stripe invoice history across all clients.
+          Revenue overview and invoice history.
         </p>
       </div>
 
-      {/* Summary */}
-      <div className="grid grid-cols-3 gap-4">
-        <StatCard label="Total collected" value={`£${(totalPaid / 100).toFixed(2)}`} />
-        <StatCard label="Paid invoices"   value={rows.filter(i => i.status === 'paid').length.toString()} />
-        <StatCard label="Failed"          value={rows.filter(i => i.status === 'failed').length.toString()} accent="red" />
+      {/* Revenue overview */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <StatCard label="Monthly recurring" value={`${currencySymbol}${mrr.toFixed(2)}`} sublabel={`${subAgreements.length} subscription${subAgreements.length !== 1 ? 's' : ''}`} />
+        <StatCard label="Active clients"    value={activeAgreements.length.toString()} sublabel={`${(agreements ?? []).length} total`} />
+        <StatCard label="Avg / client"      value={`${currencySymbol}${avgPerClient.toFixed(2)}`} sublabel="per month" />
+        <StatCard label="Total collected"   value={`${currencySymbol}${(totalPaid / 100).toFixed(2)}`} sublabel={`${rows.filter(i => i.status === 'paid').length} paid`} />
+      </div>
+
+      {/* Per-client revenue table */}
+      {activeAgreements.length > 0 && (
+        <div className="card overflow-hidden">
+          <div className="px-4 py-3 border-b border-surface-border">
+            <p className="label">Active client revenue</p>
+          </div>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-surface-border">
+                <th className="px-4 py-2.5 text-left label">Client</th>
+                <th className="px-4 py-2.5 text-left label">Model</th>
+                <th className="px-4 py-2.5 text-right label">Monthly rate</th>
+              </tr>
+            </thead>
+            <tbody>
+              {activeAgreements
+                .sort((a, b) => (b.manual_price_numeric ?? 0) - (a.manual_price_numeric ?? 0))
+                .map(ag => {
+                  const clientName = (ag.client as unknown as { full_name: string | null })?.full_name ?? '—';
+                  const model = ag.agreement_model === 'subscription' ? 'SUB' : ag.agreement_model === 'fixed_block' ? 'BLOCK' : 'HYBRID';
+                  return (
+                    <tr key={ag.id} className="border-b border-surface-border/50 hover:bg-surface-2 transition-colors">
+                      <td className="px-4 py-2.5 text-slate-300 font-medium">{clientName}</td>
+                      <td className="px-4 py-2.5">
+                        <span className="text-2xs font-mono px-2 py-0.5 rounded bg-surface-3 text-slate-500 border border-surface-border">{model}</span>
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-mono text-slate-200">
+                        {formatCurrency(ag.manual_price_numeric ?? 0, ag.currency ?? 'GBP')}
+                      </td>
+                    </tr>
+                  );
+                })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Invoice history */}
+      <div>
+        <p className="label mb-3">Invoice history</p>
+        <div className="grid grid-cols-3 gap-4 mb-4">
+          <StatCard label="Paid invoices" value={rows.filter(i => i.status === 'paid').length.toString()} />
+          <StatCard label="Pending"       value={rows.filter(i => i.status === 'pending').length.toString()} />
+          <StatCard label="Failed"        value={rows.filter(i => i.status === 'failed').length.toString()} accent="red" />
+        </div>
       </div>
 
       {/* Invoice table */}
@@ -104,13 +165,14 @@ export default async function BillingPage() {
   );
 }
 
-function StatCard({ label, value, accent }: { label: string; value: string; accent?: 'red' }) {
+function StatCard({ label, value, sublabel, accent }: { label: string; value: string; sublabel?: string; accent?: 'red' }) {
   return (
     <div className="card p-4">
       <p className="label mb-1">{label}</p>
       <p className={`text-2xl font-mono font-bold ${accent === 'red' ? 'text-red-400' : 'text-slate-100'}`}>
         {value}
       </p>
+      {sublabel && <p className="text-2xs font-mono text-slate-600 mt-1">{sublabel}</p>}
     </div>
   );
 }

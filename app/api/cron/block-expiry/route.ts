@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { escapeHtml } from '@/lib/utils';
 
 interface AgreementRow {
   id:           string;
@@ -131,14 +132,14 @@ function buildRenewalHtml({
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="font-family:sans-serif;max-width:560px;margin:0 auto;padding:32px 16px;color:#1a1a1a">
-  <p style="font-size:18px;font-weight:600;margin-bottom:8px">Hi ${firstName},</p>
+  <p style="font-size:18px;font-weight:600;margin-bottom:8px">Hi ${escapeHtml(firstName)},</p>
   <p style="margin-bottom:24px">
-    Just a heads-up — your coaching plan with <strong>${ptDisplay}</strong> renews in
+    Just a heads-up — your coaching plan with <strong>${escapeHtml(ptDisplay)}</strong> renews in
     <strong style="color:${urgencyColor}">${daysUntil} day${daysUntil !== 1 ? 's' : ''}</strong>
-    on <strong>${renewalDate}</strong>.
+    on <strong>${escapeHtml(renewalDate)}</strong>.
   </p>
   <p style="font-size:13px;color:#666">
-    If you have any questions about your plan or billing, reach out to ${ptDisplay} directly.
+    If you have any questions about your plan or billing, reach out to ${escapeHtml(ptDisplay)} directly.
   </p>
   <p style="font-size:12px;color:#999;margin-top:32px">
     You're receiving this because you have an active coaching plan on Brigid.pro.

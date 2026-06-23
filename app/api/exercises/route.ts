@@ -27,15 +27,23 @@ export async function POST(req: NextRequest) {
   if (!category)                              return NextResponse.json({ error: 'Category is required' }, { status: 400 });
   if (!validCategories.includes(category))    return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
 
+  const TEXT_MAX = 2000;
+  const URL_MAX  = 500;
   for (const [field, val] of Object.entries({ description, coaching_cues, default_video_url })) {
     if (val !== undefined && val !== null && typeof val !== 'string') {
       return NextResponse.json({ error: `${field} must be a string` }, { status: 400 });
+    }
+    const limit = field === 'default_video_url' ? URL_MAX : TEXT_MAX;
+    if (typeof val === 'string' && val.length > limit) {
+      return NextResponse.json({ error: `${field} must be ${limit} characters or fewer` }, { status: 400 });
     }
   }
 
   const parsedTags = typeof tags === 'string'
     ? tags.split(',').map((t: string) => t.trim()).filter(Boolean)
     : (tags ?? []);
+  if (parsedTags.length > 20) return NextResponse.json({ error: 'Maximum 20 tags allowed' }, { status: 400 });
+  if (parsedTags.some((t: string) => t.length > 50)) return NextResponse.json({ error: 'Each tag must be 50 characters or fewer' }, { status: 400 });
 
   const { data, error } = await supabase
     .from('exercises')
