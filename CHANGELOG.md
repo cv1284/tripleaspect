@@ -4,6 +4,39 @@ All notable changes to brigid.pro are documented here.
 
 ## [Unreleased]
 
+### Nightly Audit (2026-06-25 — 1 Bug Fixed, 2 Security Hardening, 1 Feature)
+
+**BUG-55 (MEDIUM, RESOLVED)**: Programme assignment ignored unsaved sessions — created 0 sessions.
+- **Root cause**: `ProgrammeBuilder` stored new sessions in client-side state only. Clicking "Assign to Client" called the API which queried the DB — finding 0 sessions because "Save" was never clicked.
+- **Fix**: Auto-save the programme tree (via `doSave()`) before opening the assign modal. If save fails, the modal does not open.
+- **Files**: `components/pt/ProgrammeBuilder.tsx`
+
+**Security: Admin delete-user route filter injection (HIGH)**: `GET/DELETE /api/admin/delete-user/[id]` interpolated the `userId` path param directly into `.or()` filter strings without UUID validation. A crafted `userId` could bypass PostgREST filters.
+- **Fix**: Added `isValidUuid(userId)` guard returning 400 before any DB query.
+- **Files**: `app/api/admin/delete-user/[id]/route.ts`
+
+**Security: Stripe webhook secret null check (MEDIUM)**: `POST /api/webhooks/stripe` used non-null assertion on `STRIPE_WEBHOOK_SECRET`. If undefined, `constructEvent` would throw an opaque error.
+- **Fix**: Explicit early check returning 500 with clear error message.
+- **Files**: `app/api/webhooks/stripe/route.ts`
+
+**Feature: Delete programme UI** in ProgrammeBuilder.
+- "Delete programme" link at bottom of builder with inline confirmation (Confirm delete / Cancel).
+- Calls `DELETE /api/programmes/[id]` and redirects to programmes list on success.
+- **Files**: `components/pt/ProgrammeBuilder.tsx`
+
+**Smoke Tests — 7 PASS / 2 SKIP**
+- J1 Client Directory — PASS
+- J2 Exercise Library — PASS
+- J3 Session Creation — PASS
+- J4 Session Template — PASS
+- J5 Programme Creation — PASS (after BUG-55 fix)
+- J6 Portal Load — PASS
+- J7 Wellbeing Check-in — SKIP (rest day, no active session)
+- J8 Session Completion — SKIP (rest day, no active session)
+- J9 Cross-account Verification — PASS
+
+**Database Cleanup**: Removed stale test data from previous nightly runs (duplicate exercises, orphaned sessions, null-date copies). Kept tonight's Suite A happy-path session.
+
 ### Nightly Audit (2026-06-23 — 4 Bugs Fixed, 1 Feature Shipped)
 
 **BUG-52 (MEDIUM, RESOLVED)**: Portal check-in card reappeared on page reload despite already submitting.
