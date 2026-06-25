@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient }      from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { isValidUuid }       from '@/lib/utils';
 
 interface Params { params: Promise<{ id: string }> }
 
@@ -15,6 +16,9 @@ function isAdmin(email: string | undefined): boolean {
  */
 export async function GET(_req: NextRequest, { params }: Params) {
   const { id: userId } = await params;
+  if (!isValidUuid(userId)) {
+    return NextResponse.json({ error: 'Invalid user id' }, { status: 400 });
+  }
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -77,6 +81,9 @@ export async function GET(_req: NextRequest, { params }: Params) {
  */
 export async function DELETE(_req: NextRequest, { params }: Params) {
   const { id: userId } = await params;
+  if (!isValidUuid(userId)) {
+    return NextResponse.json({ error: 'Invalid user id' }, { status: 400 });
+  }
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

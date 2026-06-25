@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Programme, ProgrammeWeek, ProgrammeSession, SessionCategory, ClientRow } from '@/types/database';
 import { CATEGORY_CONFIG } from '@/lib/utils';
 
@@ -258,12 +259,14 @@ interface Props {
 }
 
 export default function ProgrammeBuilder({ programme: initial, clients }: Props) {
+  const router = useRouter();
   const [programme,    setProgramme]    = useState<Programme>(initial);
   const [activeWeek,   setActiveWeek]   = useState(0); // 0-based index
   const [editingSlot,  setEditingSlot]  = useState<{ weekId: string; dayOfWeek: number; session?: ProgrammeSession } | null>(null);
   const [showAssign,   setShowAssign]   = useState(false);
   const [saving,       setSaving]       = useState(false);
   const [saveMsg,      setSaveMsg]      = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const weeks = programme.weeks ?? [];
   const currentWeek = weeks[activeWeek] as ProgrammeWeek | undefined;
@@ -292,10 +295,7 @@ export default function ProgrammeBuilder({ programme: initial, clients }: Props)
     });
   }, []);
 
-  async function handleSave() {
-    setSaving(true);
-    setSaveMsg(null);
-
+  async function doSave(): Promise<boolean> {
     const [metaRes, treeRes] = await Promise.all([
       fetch(`/api/programmes/${programme.id}`, {
         method:  'PATCH',
@@ -325,10 +325,31 @@ export default function ProgrammeBuilder({ programme: initial, clients }: Props)
         }),
       }),
     ]);
+    return metaRes.ok && treeRes.ok;
+  }
 
+  async function handleSave() {
+    setSaving(true);
+    setSaveMsg(null);
+    const ok = await doSave();
     setSaving(false);
-    setSaveMsg(metaRes.ok && treeRes.ok ? '✓ Saved' : '✕ Save failed');
+    setSaveMsg(ok ? '✓ Saved' : '✕ Save failed');
     setTimeout(() => setSaveMsg(null), 2500);
+  }
+
+  async function handleAssignClick() {
+    setSaving(true);
+    setSaveMsg(null);
+    const ok = await doSave();
+    setSaving(false);
+    if (!ok) {
+      setSaveMsg('✕ Save failed — cannot assign');
+      setTimeout(() => setSaveMsg(null), 2500);
+      return;
+    }
+    setSaveMsg('✓ Saved');
+    setTimeout(() => setSaveMsg(null), 2500);
+    setShowAssign(true);
   }
 
   return (
@@ -355,7 +376,8 @@ export default function ProgrammeBuilder({ programme: initial, clients }: Props)
             </span>
           )}
           <button
-            onClick={() => setShowAssign(true)}
+            onClick={handleAssignClick}
+            disabled={saving}
             className="btn-ghost text-sm text-indigo-400 hover:text-indigo-300"
           >
             ↗ Assign to Client
@@ -447,6 +469,38 @@ export default function ProgrammeBuilder({ programme: initial, clients }: Props)
           onClose={() => setEditingSlot(null)}
         />
       )}
+
+      {/* Danger zone */}
+      <div className="border-t border-surface-border pt-6 mt-8">
+        {confirmDelete ? (
+          <div className="flex items-center gap-3">
+            <p className="text-xs font-mono text-red-400">Delete this programme permanently?</p>
+            <button
+              onClick={async () => {
+                const res = await fetch(`/api/programmes/${programme.id}`, { method: 'DELETE' });
+                if (res.ok) router.push('/pt/programmes');
+                else setSaveMsg('✕ Delete failed');
+              }}
+              className="text-xs font-mono text-red-500 hover:text-red-400 border border-red-500/30 px-3 py-1 rounded-lg transition-colors"
+            >
+              Confirm delete
+            </button>
+            <button
+              onClick={() => setConfirmDelete(false)}
+              className="text-xs font-mono text-slate-500 hover:text-slate-400 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setConfirmDelete(true)}
+            className="text-xs font-mono text-slate-600 hover:text-red-400 transition-colors"
+          >
+            Delete programme
+          </button>
+        )}
+      </div>
 
       {/* Assign modal */}
       {showAssign && (
