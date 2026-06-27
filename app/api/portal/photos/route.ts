@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient }      from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { stripHtmlTags }     from '@/lib/utils';
+import { stripHtmlTags, isValidUuid } from '@/lib/utils';
 
 const BUCKET        = 'progress-photos';
 const MAX_BYTES     = 10 * 1024 * 1024; // 10 MB
@@ -84,6 +84,7 @@ export async function GET(req: NextRequest) {
   if (profile?.role === 'pt') {
     const clientId = req.nextUrl.searchParams.get('clientId');
     if (!clientId) return NextResponse.json({ error: 'clientId required' }, { status: 400 });
+    if (!isValidUuid(clientId)) return NextResponse.json({ error: 'Invalid clientId' }, { status: 400 });
 
     const { data: agreement } = await supabase
       .from('client_agreements').select('id')

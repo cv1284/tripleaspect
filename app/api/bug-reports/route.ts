@@ -53,7 +53,13 @@ export async function POST(req: NextRequest) {
       page_title:     page_title || url,
       notes:          typeof notes === 'string' ? stripHtmlTags(notes.trim()).slice(0, 2000) || null : null,
       report_type:    report_type === 'feature' ? 'feature' : 'bug',
-      screenshot_url: screenshot_url || null,
+      screenshot_url: (() => {
+        if (typeof screenshot_url !== 'string' || !screenshot_url.trim()) return null;
+        try {
+          const { protocol } = new URL(screenshot_url);
+          return (protocol === 'http:' || protocol === 'https:') ? screenshot_url.trim() : null;
+        } catch { return null; }
+      })(),
       user_agent:     req.headers.get('user-agent'),
     })
     .select('id, ref, report_type, notes, url, page_title')

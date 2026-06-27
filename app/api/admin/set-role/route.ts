@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient }      from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { readJsonBody }      from '@/lib/utils';
+import { readJsonBody, isValidUuid } from '@/lib/utils';
 
 /**
  * POST /api/admin/set-role
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
   if (body === null) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   const { userId, role } = body as { userId?: any; role?: any };
 
-  if (!userId || !['pt', 'client'].includes(role)) {
+  if (!userId || !isValidUuid(userId) || !['pt', 'client'].includes(role)) {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
   }
 

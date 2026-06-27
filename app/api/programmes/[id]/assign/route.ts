@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { readJsonBody } from '@/lib/utils';
+import { readJsonBody, isValidUuid } from '@/lib/utils';
 
 interface Params { params: Promise<{ id: string }> }
 
@@ -9,6 +9,8 @@ interface Params { params: Promise<{ id: string }> }
 // Bulk-creates sessions + session_items from the programme tree.
 export async function POST(req: NextRequest, { params }: Params) {
   const { id: programmeId } = await params;
+  if (!isValidUuid(programmeId)) return NextResponse.json({ error: 'Invalid programme id' }, { status: 400 });
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -19,6 +21,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (!clientId || !startDate) {
     return NextResponse.json({ error: 'clientId and startDate are required' }, { status: 400 });
   }
+  if (!isValidUuid(clientId)) return NextResponse.json({ error: 'Invalid clientId' }, { status: 400 });
 
   const parsedMonday = new Date(startDate);
   if (isNaN(parsedMonday.getTime())) {

@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { isValidUuid } from '@/lib/utils';
 
 interface Params { params: Promise<{ id: string }> }
 
-// POST /api/templates/[id]/duplicate
-// Creates a private copy of any accessible template (own or public).
 export async function POST(_req: NextRequest, { params }: Params) {
   const { id } = await params;
+  if (!isValidUuid(id)) return NextResponse.json({ error: 'Invalid template id' }, { status: 400 });
+
   const supabase = await createClient();
 
   const { data: { user } } = await supabase.auth.getUser();

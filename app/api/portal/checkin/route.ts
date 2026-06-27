@@ -80,7 +80,7 @@ export async function GET(req: NextRequest) {
   let targetClientId = user.id;
 
   if (profile?.role === 'pt' && clientId) {
-    // Verify the PT has an agreement with this client
+    if (!isValidUuid(clientId)) return NextResponse.json({ error: 'Invalid clientId' }, { status: 400 });
     const { data: agreement } = await supabase
       .from('client_agreements').select('id')
       .eq('pt_id', user.id).eq('client_id', clientId).maybeSingle();

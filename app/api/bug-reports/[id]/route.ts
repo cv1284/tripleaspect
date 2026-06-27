@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient }      from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { bugRefLabel }       from '@/types/database';
-import { escapeHtml, readJsonBody } from '@/lib/utils';
+import { escapeHtml, readJsonBody, isValidUuid, stripHtmlTags } from '@/lib/utils';
 
 interface Params { params: Promise<{ id: string }> }
 
-// PATCH /api/bug-reports/[id] — admin only, resolves a report
 export async function PATCH(req: NextRequest, { params }: Params) {
   const { id } = await params;
+  if (!isValidUuid(id)) return NextResponse.json({ error: 'Invalid report id' }, { status: 400 });
   const adminEmail = process.env.ADMIN_EMAIL;
   const supabase   = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -37,7 +37,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     .from('bug_reports')
     .update({
       status:        'resolved',
-      resolved_note: resolved_note || null,
+      resolved_note: typeof resolved_note === 'string' ? stripHtmlTags(resolved_note.trim()).slice(0, 2000) || null : null,
       resolved_at:   new Date().toISOString(),
     })
     .eq('id', id);

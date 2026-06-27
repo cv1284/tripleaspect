@@ -375,6 +375,14 @@ export default function ProgrammeBuilder({ programme: initial, clients }: Props)
               {saveMsg}
             </span>
           )}
+          <a
+            href={`/pt/programmes/${programme.id}/print`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-ghost text-sm text-slate-400 hover:text-slate-200"
+          >
+            ⎙ Print
+          </a>
           <button
             onClick={handleAssignClick}
             disabled={saving}

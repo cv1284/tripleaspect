@@ -66,3 +66,38 @@ export async function PATCH(
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(data);
 }
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+  if (!isValidUuid(id)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { data: profile } = await supabase
+    .from('profiles').select('role').eq('id', user.id).single();
+  if (profile?.role !== 'client') {
+    return NextResponse.json({ error: 'Only clients can delete check-ins' }, { status: 403 });
+  }
+
+  const { data: existing } = await supabase
+    .from('wellbeing_checkins')
+    .select('id')
+    .eq('id', id)
+    .eq('client_id', user.id)
+    .maybeSingle();
+  if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  const { error } = await supabase
+    .from('wellbeing_checkins')
+    .delete()
+    .eq('id', id)
+    .eq('client_id', user.id);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ success: true });
+}
