@@ -6,6 +6,7 @@ import SessionView       from '@/components/client/SessionView';
 import PortalBanners     from '@/components/client/PortalBanners';
 import ClientOnboarding  from '@/components/client/ClientOnboarding';
 import PortalNav         from '@/components/client/PortalNav';
+import { CompletionStreak, WellbeingTrend } from '@/components/client/PortalStats';
 import { CATEGORY_CONFIG } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 
@@ -115,6 +116,31 @@ export default async function ClientPortalPage({ params }: Props) {
   const session    = todaySessions?.[0] ?? null;
   const nextUp     = upcomingSessions?.[0] ?? null;
 
+  // ── Completion streak ────────────────────────────────────
+  const { data: recentSessions } = await supabase
+    .from('sessions')
+    .select('scheduled_date, completed_at')
+    .eq('client_id', clientId)
+    .lte('scheduled_date', today)
+    .order('scheduled_date', { ascending: false })
+    .limit(60);
+
+  let streak = 0;
+  if (recentSessions) {
+    for (const s of recentSessions) {
+      if (s.completed_at) streak++;
+      else break;
+    }
+  }
+
+  // ── Recent wellbeing check-ins (trend) ───────────────────
+  const { data: recentCheckins } = await supabase
+    .from('wellbeing_checkins')
+    .select('sleep, stress, soreness, created_at')
+    .eq('client_id', clientId)
+    .order('created_at', { ascending: false })
+    .limit(7);
+
   const { data: existingCheckin } = session
     ? await supabase
         .from('wellbeing_checkins')
@@ -176,6 +202,9 @@ export default async function ClientPortalPage({ params }: Props) {
 
         <main className="max-w-lg mx-auto px-4 py-6 pb-28 space-y-5">
           <PortalBanners agreement={agreement as ClientAgreement} ptEmail={ptEmail} />
+
+          <CompletionStreak streak={streak} />
+          <WellbeingTrend checkins={recentCheckins ?? []} />
 
           {/* Rest day hero */}
           <div className="py-8 text-center space-y-2">
@@ -271,6 +300,8 @@ export default async function ClientPortalPage({ params }: Props) {
         client={client as Profile}
         ptEmail={ptEmail}
         hasCheckin={!!existingCheckin}
+        streak={streak}
+        recentCheckins={recentCheckins ?? []}
       />
       <PortalNav clientId={clientId} />
     </>

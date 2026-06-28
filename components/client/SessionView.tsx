@@ -6,7 +6,15 @@ import { CATEGORY_CONFIG } from '@/lib/utils';
 import PortalBanners from './PortalBanners';
 import ExerciseCard from './ExerciseCard';
 import WellbeingCheckin from './WellbeingCheckin';
+import { CompletionStreak, WellbeingTrend } from './PortalStats';
 import { format, parseISO } from 'date-fns';
+
+interface CheckinData {
+  sleep: number;
+  stress: number;
+  soreness: number;
+  created_at: string;
+}
 
 interface Props {
   session:    Session;
@@ -14,6 +22,8 @@ interface Props {
   client:     Profile;
   ptEmail?:   string;
   hasCheckin?: boolean;
+  streak?:    number;
+  recentCheckins?: CheckinData[];
 }
 
 // ─── Header ───────────────────────────────────────────────
@@ -184,7 +194,7 @@ function NoSessionToday({ clientName }: { clientName: string | null }) {
 
 // ─── Main Portal View ─────────────────────────────────────
 
-export default function SessionView({ session, agreement, client, ptEmail, hasCheckin }: Props) {
+export default function SessionView({ session, agreement, client, ptEmail, hasCheckin, streak, recentCheckins }: Props) {
   const [completed,       setCompleted]       = useState(!!session.completed_at);
   const [checkinComplete, setCheckinComplete] = useState(!!hasCheckin);
   const items = session.session_items ?? [];
@@ -212,6 +222,10 @@ export default function SessionView({ session, agreement, client, ptEmail, hasCh
 
         {/* Priority banners */}
         <PortalBanners agreement={agreement} ptEmail={ptEmail} />
+
+        {/* Stats */}
+        {streak !== undefined && <CompletionStreak streak={streak} />}
+        {recentCheckins && <WellbeingTrend checkins={recentCheckins} />}
 
         {/* Pre-session wellbeing check-in — shown only on incomplete sessions */}
         {!completed && !checkinComplete && (
