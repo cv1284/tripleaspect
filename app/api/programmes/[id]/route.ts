@@ -4,12 +4,16 @@ import { readJsonBody, isValidUuid, stripHtmlTags } from '@/lib/utils';
 
 interface Params { params: Promise<{ id: string }> }
 
-// GET /api/programmes/[id] — full programme tree
+// GET /api/programmes/[id] — full programme tree (PT-only, own or public)
 export async function GET(_req: NextRequest, { params }: Params) {
   const { id } = await params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { data: profile } = await supabase
+    .from('profiles').select('role').eq('id', user.id).single();
+  if (profile?.role !== 'pt') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   if (!isValidUuid(id)) return NextResponse.json({ error: 'Programme not found' }, { status: 404 });
 
@@ -30,6 +34,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
       )
     `)
     .eq('id', id)
+    .or(`pt_id.eq.${user.id},is_public.eq.true`)
     .single();
 
   if (error) return NextResponse.json({ error: 'Programme not found' }, { status: 404 });

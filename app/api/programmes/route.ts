@@ -2,11 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { readJsonBody, stripHtmlTags } from '@/lib/utils';
 
-// GET /api/programmes — own programmes + public from others
+// GET /api/programmes — own programmes + public from other PTs
 export async function GET(_req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { data: profile } = await supabase
+    .from('profiles').select('role').eq('id', user.id).single();
+  if (profile?.role !== 'pt') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { data, error } = await supabase
     .from('programmes')
@@ -14,6 +18,7 @@ export async function GET(_req: NextRequest) {
       id, pt_id, title, description, category, total_weeks, is_public, created_at, updated_at,
       pt:profiles ( full_name, logo_url )
     `)
+    .or(`pt_id.eq.${user.id},is_public.eq.true`)
     .order('created_at', { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
