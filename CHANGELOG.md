@@ -4,6 +4,43 @@ All notable changes to brigid.pro are documented here.
 
 ## [Unreleased]
 
+### Nightly Audit (2026-06-30 — 3 Bugs Fixed, 1 Feature Shipped)
+
+**BUG-59 (MEDIUM, RESOLVED)**: Client portal rendered two competing fixed bottom navigation bars simultaneously.
+- **Root cause**: `ClientNav` is rendered once at the portal layout level (`app/portal/[clientId]/layout.tsx`) for the signed-in client, but the older `PortalNav` component was *also* rendered independently inside `page.tsx` (twice — once per return branch), `history/page.tsx`, `photos/page.tsx`, and `account/page.tsx`. Since `history`/`photos`/`account` always redirect non-owners away, `isOwnPortal` is always true there, making `PortalNav` pure dead weight stacked under `ClientNav`.
+- **Fix**: Removed the redundant `PortalNav` render (and import) from `history/page.tsx`, `photos/page.tsx`, and `account/page.tsx`. In the main portal `page.tsx`, made `PortalNav` conditional on `!isOwnPortal` so a PT previewing a client's portal still gets a nav bar.
+- **Files**: `app/portal/[clientId]/page.tsx`, `app/portal/[clientId]/history/page.tsx`, `app/portal/[clientId]/photos/page.tsx`, `app/portal/[clientId]/account/page.tsx`
+
+**BUG-60 (LOW-MEDIUM, RESOLVED)**: `POST /api/exercises` stored `description` and `coaching_cues` with only `.trim()` — no `stripHtmlTags()` — unlike the `name` field, which already strips tags. Raw HTML (e.g. `<b>Render Test</b>`) persisted verbatim.
+- **Fix**: Both fields now go through `stripHtmlTags()` before insert, matching `name`'s existing pattern.
+- **Files**: `app/api/exercises/route.ts`
+
+**BUG-61 (MEDIUM, RESOLVED)**: `SessionBuilder.tsx` writes `sessions`/`session_items` directly to Supabase from the browser (no Next.js API route in this flow) with zero HTML sanitization on `title`, `notes`, and `custom_coaching_cues` — the only text-input write path in the app that skipped `stripHtmlTags()`. Not currently exploitable as live XSS (no `dangerouslySetInnerHTML` renders these fields), but stored raw `<script>`/`<b>` tags violate the same data-hygiene standard enforced everywhere else.
+- **Fix**: Added `stripHtmlTags()` calls before the Supabase insert/update for all three fields.
+- **Files**: `components/pt/SessionBuilder.tsx`
+
+**Feature: Client goal setting**. PT can set a free-text goal (max 280 chars) and an optional target date for a client from the Client Profile Drawer (Overview tab). The client sees it as a motivational card on their portal home page (rest-day view and active-session view), formatted with the target date if set.
+- New columns: `client_agreements.goal_text`, `client_agreements.goal_target_date` (migration `012_client_goals.sql`).
+- `PATCH /api/agreements/[id]` extended to accept both fields — `goal_text` is HTML-stripped and capped at 280 chars; `goal_target_date` is validated as a real date.
+- **Files**: `supabase/migrations/012_client_goals.sql`, `app/api/agreements/[id]/route.ts`, `components/pt/ClientProfileDrawer.tsx`, `components/client/PortalStats.tsx` (new `ClientGoalCard`), `app/portal/[clientId]/page.tsx`, `components/client/SessionView.tsx`, `types/database.ts`
+
+**Smoke Tests — 9 PASS / 0 FAIL / 0 SKIP**
+- J1 Client Directory — PASS
+- J2 Exercise Library — PASS
+- J3 Session Creation — PASS
+- J4 Session Template — PASS
+- J5 Programme Creation — PASS
+- J6 Portal Load — PASS (after BUG-59 fix)
+- J7 Wellbeing Check-in — PASS
+- J8 Session Completion — PASS
+- J9 Cross-account Verification — PASS
+
+**Data Boundary & Injection Audit**: Ran Suite A/B/C payloads against check-in scores (range/type/missing-field rejection all correct), exercise creation (XSS — found BUG-60), session creation (XSS — found BUG-61), programme week-count clamping (`Math.min(Math.max(n,1),52)` — correct), and the new goal fields (XSS stripped, 280-char cap enforced, invalid dates rejected with 400). Static audit of all API routes found no exploitable issues beyond BUG-60/61 — two flagged findings (date parsing in `programmes/[id]/assign`, notes sanitization in the same route) were investigated and confirmed to be false positives (ISO date-only strings parse as UTC per spec; the only write path into `programme_sessions.notes` already sanitizes at `save-tree`).
+
+**Database Cleanup**: Deleted Suite B/C test artefacts (XSS-payload exercise, oversized/script-payload check-ins, mojibake billing note from an old seed run) and this run's "Smoke Test Template" / "Smoke Test Programme". Per the cleanup contradiction found tonight, "Smoke Test Squat" is intentionally *not* deleted going forward — see process note below.
+
+**Process fix**: The nightly task definition instructed deleting the "Smoke Test Squat" custom exercise every run while also keeping the Suite A happy-path session that references it — the FK constraint on `session_items.exercise_id` has been silently blocking that deletion (409) every night since 2026-06-25, so the exercise was actually never deleted and just appeared to accumulate. Updated `SKILL.md` to keep the exercise (it's now permanent demo data, like the session) and to reuse an existing one instead of creating a new row each night.
+
 ### Nightly Audit (2026-06-25 — 1 Bug Fixed, 2 Security Hardening, 1 Feature)
 
 **BUG-55 (MEDIUM, RESOLVED)**: Programme assignment ignored unsaved sessions — created 0 sessions.

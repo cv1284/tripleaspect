@@ -50,8 +50,8 @@ export async function POST(req: NextRequest) {
     .insert({
       name:               cleanName,
       category,
-      description:        description?.trim() || null,
-      coaching_cues:      coaching_cues?.trim() || null,
+      description:        description ? stripHtmlTags(description) || null : null,
+      coaching_cues:      coaching_cues ? stripHtmlTags(coaching_cues) || null : null,
       default_video_url:  default_video_url?.trim() || null,
       custom_youtube_url: null,
       is_custom:          true,

@@ -3,7 +3,6 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { redirect, notFound } from 'next/navigation';
 import { Profile, ClientAgreement } from '@/types/database';
 import ClientAccountClient from './AccountClient';
-import PortalNav           from '@/components/client/PortalNav';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,7 +64,6 @@ export default async function ClientAccountPage({ params }: Props) {
         ptName={ptName}
         ptEmail={ptEmail}
       />
-      <PortalNav clientId={clientId} />
     </div>
   );
 }

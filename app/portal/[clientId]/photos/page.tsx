@@ -2,7 +2,6 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect }     from 'next/navigation';
 import { ProgressPhoto } from '@/types/database';
 import PhotosClient      from './PhotosClient';
-import PortalNav         from '@/components/client/PortalNav';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,7 +34,6 @@ export default async function PhotosPage({ params }: Props) {
         </div>
       </header>
       <PhotosClient initialPhotos={(photos ?? []) as ProgressPhoto[]} />
-      <PortalNav clientId={clientId} />
     </div>
   );
 }

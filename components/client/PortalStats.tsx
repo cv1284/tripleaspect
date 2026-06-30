@@ -5,6 +5,31 @@ interface CheckinData {
   created_at: string;
 }
 
+export function ClientGoalCard({
+  goalText, goalTargetDate,
+}: {
+  goalText:       string | null;
+  goalTargetDate: string | null;
+}) {
+  if (!goalText) return null;
+
+  const targetLabel = goalTargetDate
+    ? new Date(goalTargetDate + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    : null;
+
+  return (
+    <div className="rounded-xl bg-surface-2 border border-indigo-500/20 px-4 py-3 flex items-center gap-3">
+      <span className="text-2xl">🎯</span>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-slate-200">{goalText}</p>
+        {targetLabel && (
+          <p className="text-2xs font-mono text-slate-500 mt-0.5">Target: {targetLabel}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ScoreBar({ value, max = 5, color }: { value: number; max?: number; color: string }) {
   const pct = (value / max) * 100;
   return (

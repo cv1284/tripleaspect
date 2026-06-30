@@ -6,7 +6,7 @@ import SessionView       from '@/components/client/SessionView';
 import PortalBanners     from '@/components/client/PortalBanners';
 import ClientOnboarding  from '@/components/client/ClientOnboarding';
 import PortalNav         from '@/components/client/PortalNav';
-import { CompletionStreak, WellbeingTrend } from '@/components/client/PortalStats';
+import { CompletionStreak, WellbeingTrend, ClientGoalCard } from '@/components/client/PortalStats';
 import { CATEGORY_CONFIG } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 
@@ -204,6 +204,10 @@ export default async function ClientPortalPage({ params }: Props) {
           <PortalBanners agreement={agreement as ClientAgreement} ptEmail={ptEmail} />
 
           <CompletionStreak streak={streak} />
+          <ClientGoalCard
+            goalText={(agreement as unknown as ClientAgreement).goal_text}
+            goalTargetDate={(agreement as unknown as ClientAgreement).goal_target_date}
+          />
           <WellbeingTrend checkins={recentCheckins ?? []} />
 
           {/* Rest day hero */}
@@ -287,7 +291,7 @@ export default async function ClientPortalPage({ params }: Props) {
           )}
         </main>
 
-        <PortalNav clientId={clientId} />
+        {!isOwnPortal && <PortalNav clientId={clientId} />}
       </div>
     );
   }
@@ -303,7 +307,7 @@ export default async function ClientPortalPage({ params }: Props) {
         streak={streak}
         recentCheckins={recentCheckins ?? []}
       />
-      <PortalNav clientId={clientId} />
+      {!isOwnPortal && <PortalNav clientId={clientId} />}
     </>
   );
 }

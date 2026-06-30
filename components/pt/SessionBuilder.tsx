@@ -7,7 +7,7 @@ import {
   ForgingMetrics, HealingMetrics, VerseMetrics, PrescribedMetrics,
   SessionTemplate,
 } from '@/types/database';
-import { CATEGORY_CONFIG, formatMetricsSummary, getInitials } from '@/lib/utils';
+import { CATEGORY_CONFIG, formatMetricsSummary, getInitials, stripHtmlTags } from '@/lib/utils';
 import { extractYouTubeVideoId } from '@/lib/youtube';
 import { createClient } from '@/lib/supabase/client';
 
@@ -898,10 +898,10 @@ export default function SessionBuilder({
     const sessionPayload = {
       pt_id:          ptId,
       client_id:      clientId,
-      title:          title.trim(),
+      title:          stripHtmlTags(title),
       category,
       scheduled_date: schedDate || null,
-      notes:          notes || null,
+      notes:          notes ? stripHtmlTags(notes) || null : null,
     };
 
     let sessionId = initialSession?.id;
@@ -933,7 +933,7 @@ export default function SessionBuilder({
       exercise_id:          item.exercise.id,
       sort_order:           idx,
       prescribed_metrics:   buildMetricsPayload(item.prescribed_metrics, category),
-      custom_coaching_cues: item.custom_coaching_cues || null,
+      custom_coaching_cues: item.custom_coaching_cues ? stripHtmlTags(item.custom_coaching_cues) || null : null,
       custom_youtube_url:   item.custom_youtube_url || null,
     }));
 

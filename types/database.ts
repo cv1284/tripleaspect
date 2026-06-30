@@ -137,6 +137,10 @@ export interface ClientAgreement {
   manual_currency:        string;
   billing_notes:          string | null;
 
+  // Client goal
+  goal_text:              string | null;
+  goal_target_date:       string | null;
+
   // Stripe (future)
   stripe_customer_id:     string | null;
   stripe_subscription_id: string | null;

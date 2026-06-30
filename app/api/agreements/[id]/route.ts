@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { readJsonBody, isValidUuid } from '@/lib/utils';
+import { readJsonBody, isValidUuid, stripHtmlTags } from '@/lib/utils';
 
 interface Params { params: Promise<{ id: string }> }
 
@@ -72,6 +72,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     'consent_signed', 'consent_storage_url',
     'manual_price_numeric', 'manual_currency', 'billing_notes',
     'deletion_scheduled_at', 'deletion_reason',
+    'goal_text', 'goal_target_date',
   ] as const;
 
   const payload = Object.fromEntries(
@@ -108,6 +109,21 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: 'manual_price_numeric must be a number between 0 and 1,000,000' }, { status: 400 });
     }
     payload.manual_price_numeric = price;
+  }
+
+  // Sanitize and cap goal_text; validate goal_target_date is a real date
+  if ('goal_text' in payload && payload.goal_text !== null) {
+    const val = payload.goal_text;
+    if (typeof val !== 'string') {
+      return NextResponse.json({ error: 'goal_text must be a string' }, { status: 400 });
+    }
+    payload.goal_text = stripHtmlTags(val).slice(0, 280) || null;
+  }
+  if ('goal_target_date' in payload && payload.goal_target_date !== null) {
+    const val = payload.goal_target_date;
+    if (typeof val !== 'string' || isNaN(new Date(val).getTime())) {
+      return NextResponse.json({ error: 'goal_target_date must be a valid date' }, { status: 400 });
+    }
   }
 
   // Validate doc storage URLs — only http/https accepted to prevent javascript:/data: XSS

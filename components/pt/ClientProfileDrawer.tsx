@@ -29,6 +29,8 @@ interface FormState {
   manual_price_numeric: string;
   manual_currency:      string;
   billing_notes:        string;
+  goal_text:            string;
+  goal_target_date:     string;
   parq_signed:          boolean;
   parq_storage_url:     string;
   waiver_signed:        boolean;
@@ -50,6 +52,8 @@ function agreementToForm(client: ClientRow): FormState {
     manual_price_numeric: a.manual_price_numeric?.toString() ?? '',
     manual_currency:      a.manual_currency,
     billing_notes:        a.billing_notes ?? '',
+    goal_text:            a.goal_text ?? '',
+    goal_target_date:     a.goal_target_date ?? '',
     parq_signed:          a.parq_signed,
     parq_storage_url:     a.parq_storage_url ?? '',
     waiver_signed:        a.waiver_signed,
@@ -509,6 +513,8 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
       manual_price_numeric: form.manual_price_numeric ? parseFloat(form.manual_price_numeric) : null,
       manual_currency:      form.manual_currency,
       billing_notes:        form.billing_notes || null,
+      goal_text:            form.goal_text || null,
+      goal_target_date:     form.goal_target_date || null,
       parq_signed:          form.parq_signed,
       parq_storage_url:     form.parq_storage_url || null,
       waiver_signed:        form.waiver_signed,
@@ -692,6 +698,26 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
                   />
                 </div>
               )}
+
+              {/* Client goal */}
+              <div>
+                <p className="section-header">Client Goal</p>
+                <input
+                  type="text"
+                  value={form.goal_text}
+                  onChange={e => set('goal_text', e.target.value)}
+                  className="input mb-2"
+                  placeholder="e.g. Squat 100kg by summer"
+                  maxLength={280}
+                />
+                <label className="label block mb-1">Target Date (optional)</label>
+                <input
+                  type="date"
+                  value={form.goal_target_date}
+                  onChange={e => set('goal_target_date', e.target.value)}
+                  className="input"
+                />
+              </div>
 
               {/* Sessions summary */}
               <div className="p-4 rounded-lg bg-surface-2 border border-surface-border">

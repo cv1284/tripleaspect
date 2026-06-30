@@ -2,7 +2,6 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect }     from 'next/navigation';
 import { Session }      from '@/types/database';
 import { format, parseISO } from 'date-fns';
-import PortalNav from '@/components/client/PortalNav';
 import HistoryClient, { PersonalRecord, WellbeingCheckinData } from '@/components/client/HistoryClient';
 
 export const dynamic = 'force-dynamic';
@@ -121,8 +120,6 @@ export default async function HistoryPage({ params }: Props) {
           records={records}
         />
       </main>
-
-      <PortalNav clientId={clientId} />
     </div>
   );
 }
