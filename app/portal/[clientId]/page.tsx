@@ -102,16 +102,15 @@ export default async function ClientPortalPage({ params }: Props) {
     .order('created_at', { ascending: false })
     .limit(1);
 
-  // If no session today, look ahead for the next upcoming one (for the rest-day hint)
-  const { data: upcomingSessions } = !todaySessions?.length
-    ? await supabase
-        .from('sessions')
-        .select('id, title, scheduled_date, category')
-        .eq('client_id', clientId)
-        .gt('scheduled_date', today)
-        .order('scheduled_date', { ascending: true })
-        .limit(1)
-    : { data: null };
+  // Look ahead for the next upcoming session (used on rest days AND as a post-completion hint)
+  const { data: upcomingSessions } = await supabase
+    .from('sessions')
+    .select('id, title, scheduled_date, category')
+    .eq('client_id', clientId)
+    .gt('scheduled_date', today)
+    .is('completed_at', null)
+    .order('scheduled_date', { ascending: true })
+    .limit(1);
 
   const session    = todaySessions?.[0] ?? null;
   const nextUp     = upcomingSessions?.[0] ?? null;
@@ -306,6 +305,7 @@ export default async function ClientPortalPage({ params }: Props) {
         hasCheckin={!!existingCheckin}
         streak={streak}
         recentCheckins={recentCheckins ?? []}
+        nextSession={nextUp ?? null}
       />
       {!isOwnPortal && <PortalNav clientId={clientId} />}
     </>

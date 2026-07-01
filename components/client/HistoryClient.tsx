@@ -56,7 +56,7 @@ function scoreLabel(metric: 'sleep' | 'stress' | 'soreness', val: number): strin
 
 // ─── Session Card ─────────────────────────────────────────────
 
-function SessionCard({ session }: { session: Session }) {
+function SessionCard({ session, today }: { session: Session; today: string }) {
   const [expanded, setExpanded] = useState(false);
 
   const cfg       = CATEGORY_CONFIG[session.category];
@@ -66,9 +66,11 @@ function SessionCard({ session }: { session: Session }) {
   const completedAt = session.completed_at
     ? format(parseISO(session.completed_at), 'HH:mm')
     : null;
+  const isMissed = !session.completed_at && !!session.scheduled_date && session.scheduled_date < today;
   const items = (session.session_items ?? [])
     .slice()
     .sort((a, b) => a.sort_order - b.sort_order);
+  const hasDetail = items.length > 0 || !!session.notes || !!session.client_notes;
 
   return (
     <div className="card overflow-hidden">
@@ -87,9 +89,11 @@ function SessionCard({ session }: { session: Session }) {
         </div>
 
         <div className="text-right flex-shrink-0">
-          {completedAt && (
+          {completedAt ? (
             <p className="text-xs font-mono text-emerald-400">✓ {completedAt}</p>
-          )}
+          ) : isMissed ? (
+            <p className="text-xs font-mono text-amber-600">○ Missed</p>
+          ) : null}
           {items.length > 0 && (
             <p className="text-2xs font-mono text-slate-600 mt-0.5">
               {items.length} exercise{items.length !== 1 ? 's' : ''}
@@ -97,7 +101,7 @@ function SessionCard({ session }: { session: Session }) {
           )}
         </div>
 
-        {items.length > 0 && (
+        {hasDetail && (
           <span
             className={`text-slate-600 text-xs flex-shrink-0 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
             aria-hidden
@@ -107,7 +111,7 @@ function SessionCard({ session }: { session: Session }) {
         )}
       </button>
 
-      {expanded && items.length > 0 && (
+      {expanded && hasDetail && (
         <div className="border-t border-surface-border px-4 pt-3 pb-4 space-y-2.5">
           {items.map(item => {
             const ex = item.exercise;
@@ -129,10 +133,15 @@ function SessionCard({ session }: { session: Session }) {
             );
           })}
 
-          {session.notes && (
-            <p className="text-xs text-slate-600 italic pt-2 mt-1 border-t border-surface-border">
-              {session.notes}
-            </p>
+          {(session.notes || session.client_notes) && (
+            <div className="pt-2 mt-1 border-t border-surface-border space-y-1.5">
+              {session.notes && (
+                <p className="text-xs text-slate-600 italic">{session.notes}</p>
+              )}
+              {session.client_notes && (
+                <p className="text-xs font-mono text-indigo-400/80 italic">&ldquo;{session.client_notes}&rdquo;</p>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -309,9 +318,10 @@ interface Props {
   groups:   [string, Session[]][];
   checkins: WellbeingCheckinData[];
   records:  PersonalRecord[];
+  today:    string;
 }
 
-export default function HistoryClient({ groups, checkins, records }: Props) {
+export default function HistoryClient({ groups, checkins, records, today }: Props) {
   return (
     <div className="space-y-6">
       {groups.length === 0 ? (
@@ -325,7 +335,7 @@ export default function HistoryClient({ groups, checkins, records }: Props) {
           <div key={month} className="space-y-2">
             <h2 className="text-xs font-mono text-slate-500 uppercase tracking-widest px-1">{month}</h2>
             {monthSessions.map(s => (
-              <SessionCard key={s.id} session={s} />
+              <SessionCard key={s.id} session={s} today={today} />
             ))}
           </div>
         ))

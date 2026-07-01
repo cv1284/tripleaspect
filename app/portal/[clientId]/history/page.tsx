@@ -118,6 +118,7 @@ export default async function HistoryPage({ params }: Props) {
           groups={groups}
           checkins={(checkins ?? []) as WellbeingCheckinData[]}
           records={records}
+          today={today}
         />
       </main>
     </div>
