@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Session, ClientAgreement, Profile } from '@/types/database';
+import { Session, ClientAgreement, Profile, SessionCategory } from '@/types/database';
 import { CATEGORY_CONFIG } from '@/lib/utils';
 import PortalBanners from './PortalBanners';
 import ExerciseCard from './ExerciseCard';
@@ -16,14 +16,22 @@ interface CheckinData {
   created_at: string;
 }
 
+interface NextSessionData {
+  id:             string;
+  title:          string;
+  scheduled_date: string | null;
+  category:       string;
+}
+
 interface Props {
-  session:    Session;
-  agreement:  ClientAgreement;
-  client:     Profile;
-  ptEmail?:   string;
-  hasCheckin?: boolean;
-  streak?:    number;
+  session:      Session;
+  agreement:    ClientAgreement;
+  client:       Profile;
+  ptEmail?:     string;
+  hasCheckin?:  boolean;
+  streak?:      number;
   recentCheckins?: CheckinData[];
+  nextSession?: NextSessionData | null;
 }
 
 // ─── Header ───────────────────────────────────────────────
@@ -145,6 +153,33 @@ function CompleteButton({
   );
 }
 
+// ─── Next Session Card ────────────────────────────────────
+
+function NextSessionCard({ nextSession }: { nextSession: NextSessionData }) {
+  const cfg     = CATEGORY_CONFIG[nextSession.category as SessionCategory];
+  const dateStr = nextSession.scheduled_date
+    ? format(parseISO(nextSession.scheduled_date), 'EEEE, d MMMM')
+    : 'Unscheduled';
+
+  return (
+    <div className="rounded-xl bg-surface-2 border border-surface-border overflow-hidden">
+      <div className="px-4 py-2.5 border-b border-surface-border">
+        <p className="text-2xs font-mono text-slate-600 uppercase tracking-widest">Next session</p>
+      </div>
+      <div className="px-4 py-4 flex items-center gap-3">
+        <span className={`text-2xl ${cfg.color}`}>{cfg.icon}</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-slate-200 truncate">{nextSession.title}</p>
+          <p className="text-xs font-mono text-slate-500 mt-0.5">{dateStr}</p>
+        </div>
+        <span className={`text-2xs font-mono px-2 py-1 rounded-md ${cfg.bg} ${cfg.color}`}>
+          {cfg.label}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 // ─── Progress Bar ──────────────────────────────────────────
 
 function ProgressBar({ total, expanded }: { total: number; expanded: number }) {
@@ -194,7 +229,7 @@ function NoSessionToday({ clientName }: { clientName: string | null }) {
 
 // ─── Main Portal View ─────────────────────────────────────
 
-export default function SessionView({ session, agreement, client, ptEmail, hasCheckin, streak, recentCheckins }: Props) {
+export default function SessionView({ session, agreement, client, ptEmail, hasCheckin, streak, recentCheckins, nextSession }: Props) {
   const [completed,       setCompleted]       = useState(!!session.completed_at);
   const [checkinComplete, setCheckinComplete] = useState(!!hasCheckin);
   const items = session.session_items ?? [];
@@ -243,30 +278,33 @@ export default function SessionView({ session, agreement, client, ptEmail, hasCh
         {items.length === 0 ? (
           <EmptySession />
         ) : (
-          <>
-            <div className="space-y-3">
-              {items
-                .sort((a, b) => a.sort_order - b.sort_order)
-                .map((item, idx) => (
-                  <ExerciseCard
-                    key={item.id}
-                    item={item}
-                    index={idx}
-                    category={session.category}
-                  />
-                ))}
-            </div>
+          <div className="space-y-3">
+            {items
+              .sort((a, b) => a.sort_order - b.sort_order)
+              .map((item, idx) => (
+                <ExerciseCard
+                  key={item.id}
+                  item={item}
+                  index={idx}
+                  category={session.category}
+                />
+              ))}
+          </div>
+        )}
 
-            {/* Mark complete */}
-            <div className="pt-4">
-              <CompleteButton
-                sessionId={session.id}
-                isCompleted={completed}
-                clientNotes={session.client_notes ?? null}
-                onComplete={() => setCompleted(true)}
-              />
-            </div>
-          </>
+        {/* Mark complete — always visible so programme sessions (no items yet) can still be logged */}
+        <div className="pt-4">
+          <CompleteButton
+            sessionId={session.id}
+            isCompleted={completed}
+            clientNotes={session.client_notes ?? null}
+            onComplete={() => setCompleted(true)}
+          />
+        </div>
+
+        {/* Next session preview — shown after the client completes today's session */}
+        {completed && nextSession && (
+          <NextSessionCard nextSession={nextSession} />
         )}
 
         {/* Bottom padding */}
