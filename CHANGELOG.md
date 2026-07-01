@@ -4,6 +4,39 @@ All notable changes to brigid.pro are documented here.
 
 ## [Unreleased]
 
+### Nightly Audit (2026-07-01 — 1 Bug Fixed, 3 Features Shipped)
+
+**BUG-62 (MEDIUM, RESOLVED)**: `CompleteButton` was hidden for sessions with no `session_items` (programme-assigned sessions). Clients assigned to a programme whose sessions haven't had exercises added yet saw only an empty-exercise placeholder with no way to log session completion.
+- **Root cause**: `SessionView.tsx` conditioned `CompleteButton` rendering on `items.length > 0`, so programme-generated sessions (which arrive with zero `session_items`) never showed the button.
+- **Fix**: Moved `CompleteButton` outside the `items.length` conditional so it always renders. The "Your coach is still building your programme" placeholder still appears for empty sessions, but the button now renders beneath it in all cases.
+- **Files**: `components/client/SessionView.tsx`
+
+**Feature: Client completion notes in history**. The free-text note a client adds when completing a session (`client_notes`) is now displayed in the expanded session card on the client History tab, shown in indigo below the coach's session notes to distinguish the two voices.
+- No new API route or migration needed — `client_notes` is already included in the history page's `SELECT *` on `sessions`.
+- **Files**: `components/client/HistoryClient.tsx`
+
+**Feature: Missed session indicator in history**. Past sessions with no `completed_at` (scheduled date is earlier than today) now display an amber "○ Missed" badge in the history card header, mirroring the green "✓ HH:MM" completion stamp shown for completed sessions. Provides at-a-glance adherence visibility.
+- **Files**: `components/client/HistoryClient.tsx`
+
+**Feature: Next session preview after completion**. After a client marks today's session complete, a "Next session" card appears below the completion confirmation showing the title, date, and category of their next upcoming incomplete session. Keeps motivation high at the moment of completing a workout.
+- Portal page now always fetches the next upcoming session (previously only fetched on rest days). Passed as a new `nextSession` prop to `SessionView`, which renders `NextSessionCard` only when `completed && nextSession`.
+- **Files**: `app/portal/[clientId]/page.tsx`, `components/client/SessionView.tsx`
+
+**Smoke Tests — 9 PASS / 0 FAIL / 0 SKIP**
+- J1 Client Directory — PASS
+- J2 Exercise Library — PASS
+- J3 Session Creation — PASS
+- J4 Session Template — PASS
+- J5 Programme Creation — PASS
+- J6 Portal Load — PASS
+- J7 Wellbeing Check-in — PASS
+- J8 Session Completion — PASS
+- J9 Cross-account Verification — PASS
+
+**Data Boundary & Injection Audit (Suite A/B/C)**: No exploitable issues found. Suite A — XSS: `dangerouslySetInnerHTML` uses only hardcoded strings; all API routes apply `stripHtmlTags()`; React JSX auto-escaping protects all rendered fields. Suite B — Authorization: PT-only and client-only endpoints correctly return 403; cross-PT data access returns 404; PT accessing own managed client's data returns 200 (intentional). Suite C — Mutation: Client role blocked from all PT-write endpoints (403); IDOR on sessions/templates/exercises returns 403/404; RLS enforces profile-update ownership even when URL clientId is spoofed.
+
+**Database Cleanup**: Deleted tonight's wellbeing check-in (submitted in J7) and all smoke-test artefacts (Smoke Test Template, Smoke Test Programme, Smoke Test W1 Mon session). Smoke Test Session (happy-path, scheduled 2026-07-02) and Smoke Test Squat exercise retained per process fix documented 2026-06-30.
+
 ### Nightly Audit (2026-06-30 — 3 Bugs Fixed, 1 Feature Shipped)
 
 **BUG-59 (MEDIUM, RESOLVED)**: Client portal rendered two competing fixed bottom navigation bars simultaneously.
