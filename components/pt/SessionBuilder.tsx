@@ -570,8 +570,8 @@ function SaveTemplateModal({
                   isPublic ? 'bg-indigo-500' : 'bg-surface-4'
                 }`}
               >
-                <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                  isPublic ? 'translate-x-[22px]' : 'translate-x-0.5'
+                <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-[left] ${
+                  isPublic ? 'left-[22px]' : 'left-0.5'
                 }`} />
               </button>
               <div>

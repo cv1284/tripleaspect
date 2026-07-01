@@ -88,8 +88,8 @@ function DocRow({
             signed ? 'bg-emerald-500' : 'bg-surface-4'
           }`}
         >
-          <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-            signed ? 'translate-x-[22px]' : 'translate-x-0.5'
+          <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-[left] ${
+            signed ? 'left-[22px]' : 'left-0.5'
           }`} />
         </button>
       </div>
