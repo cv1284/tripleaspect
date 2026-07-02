@@ -31,6 +31,10 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const { data: profile } = await supabase
+    .from('profiles').select('role').eq('id', user.id).single();
+  if (profile?.role !== 'pt') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
   const body = await readJsonBody(req);
   if (body === null) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   const { title, description, category, total_weeks, is_public } = body as {

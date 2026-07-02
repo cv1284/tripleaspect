@@ -4,6 +4,22 @@ All notable changes to brigid.pro are documented here.
 
 ## [Unreleased]
 
+### Nightly Audit (2026-07-02 — 1 Bug Fixed, 2 Features Shipped)
+
+**SECURITY (MEDIUM, RESOLVED)**: `POST /api/programmes` was missing a PT role check.
+- **Root cause**: The `GET` handler had `if (profile?.role !== 'pt') return 403` but the `POST` handler only checked `if (!user)`. Because the `programmes` table RLS policy checks `pt_id = auth.uid()` (ownership) rather than the account role, a logged-in client could create programmes that appeared in their own view under their `pt_id`.
+- **Fix**: Added role check immediately after the auth check in the POST handler, before body parsing — mirrors the existing guard in GET.
+- **Files**: `app/api/programmes/route.ts`
+
+**Feature: Client goal progress tracking**. PT can now set a progress percentage (0–100%) for a client's goal directly from the Client Profile Drawer. When a goal is set, a range slider appears below the target date input; the chosen percentage is shown on the client's portal goal card as a labelled progress bar.
+- New column: `client_agreements.goal_progress` (smallint, 0–100, nullable). Migration `013_goal_progress.sql` — apply via Supabase Dashboard SQL Editor before this deploys to avoid save errors when a PT adjusts the slider.
+- `PATCH /api/agreements/[id]` extended: `goal_progress` validated as integer 0–100; payload is only included when explicitly set (spread-conditional) so existing saves don't fail before the migration is applied.
+- **Files**: `supabase/migrations/013_goal_progress.sql`, `app/api/agreements/[id]/route.ts`, `types/database.ts`, `components/pt/ClientProfileDrawer.tsx`, `components/client/PortalStats.tsx`, `app/portal/[clientId]/page.tsx`, `components/client/SessionView.tsx`
+
+**Feature: Next session date in Client Directory**. The PT's client directory now shows when each client's next upcoming (incomplete) session is scheduled — colour-coded as emerald (today), amber (tomorrow or +1 day), or slate (later). Visible in both the mobile card strip and the desktop table (new "Next Session" column between Renewal and Docs).
+- No migration needed — queries the existing `sessions` table for `scheduled_date >= today AND completed_at IS NULL`, keeps only the earliest per client.
+- **Files**: `types/database.ts`, `app/pt/clients/page.tsx`, `components/pt/ClientDirectory.tsx`, `components/pt/AddClientModal.tsx`
+
 ### Nightly Audit (2026-07-01 — 1 Bug Fixed, 3 Features Shipped)
 
 **BUG-62 (MEDIUM, RESOLVED)**: `CompleteButton` was hidden for sessions with no `session_items` (programme-assigned sessions). Clients assigned to a programme whose sessions haven't had exercises added yet saw only an empty-exercise placeholder with no way to log session completion.

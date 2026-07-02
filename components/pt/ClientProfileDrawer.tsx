@@ -31,6 +31,7 @@ interface FormState {
   billing_notes:        string;
   goal_text:            string;
   goal_target_date:     string;
+  goal_progress:        string;
   parq_signed:          boolean;
   parq_storage_url:     string;
   waiver_signed:        boolean;
@@ -54,6 +55,7 @@ function agreementToForm(client: ClientRow): FormState {
     billing_notes:        a.billing_notes ?? '',
     goal_text:            a.goal_text ?? '',
     goal_target_date:     a.goal_target_date ?? '',
+    goal_progress:        a.goal_progress?.toString() ?? '',
     parq_signed:          a.parq_signed,
     parq_storage_url:     a.parq_storage_url ?? '',
     waiver_signed:        a.waiver_signed,
@@ -515,6 +517,7 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
       billing_notes:        form.billing_notes || null,
       goal_text:            form.goal_text || null,
       goal_target_date:     form.goal_target_date || null,
+      ...(form.goal_progress !== '' ? { goal_progress: parseInt(form.goal_progress) } : {}),
       parq_signed:          form.parq_signed,
       parq_storage_url:     form.parq_storage_url || null,
       waiver_signed:        form.waiver_signed,
@@ -715,8 +718,28 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
                   type="date"
                   value={form.goal_target_date}
                   onChange={e => set('goal_target_date', e.target.value)}
-                  className="input"
+                  className="input mb-3"
                 />
+                {form.goal_text && (
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="label">Progress</label>
+                      <span className="text-sm font-mono text-indigo-400">
+                        {form.goal_progress !== '' ? `${form.goal_progress}%` : '—'}
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0" max="100" step="5"
+                      value={form.goal_progress !== '' ? form.goal_progress : '0'}
+                      onChange={e => set('goal_progress', e.target.value)}
+                      className="w-full accent-indigo-500"
+                    />
+                    <div className="flex justify-between text-2xs font-mono text-slate-700 mt-0.5">
+                      <span>0%</span><span>50%</span><span>100%</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Sessions summary */}

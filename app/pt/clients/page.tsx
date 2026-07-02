@@ -58,6 +58,22 @@ export default async function ClientsPage() {
     return acc;
   }, {});
 
+  // Fetch next upcoming (incomplete) session date per client
+  const today = new Date().toISOString().split('T')[0];
+  const { data: upcomingSessions } = await supabase
+    .from('sessions')
+    .select('client_id, scheduled_date')
+    .eq('pt_id', user.id)
+    .in('client_id', clientIds)
+    .gte('scheduled_date', today)
+    .is('completed_at', null)
+    .order('scheduled_date', { ascending: true });
+
+  const nextSessionMap = (upcomingSessions ?? []).reduce<Record<string, string>>((acc, s) => {
+    if (!acc[s.client_id] && s.scheduled_date) acc[s.client_id] = s.scheduled_date;
+    return acc;
+  }, {});
+
   // If any profiles came back null (RLS policy quirk in Supabase), fetch them via admin
   const nullClientIds = (agreements ?? [])
     .filter(a => a.client == null)
@@ -93,6 +109,7 @@ export default async function ClientsPage() {
         sessions_this_week:  sessionCountMap[agreement.client_id] ?? 0,
         days_until_renewal:  daysUntilRenewal(agreement.renewal_date),
         onboarding_complete: isOnboardingComplete(agreement),
+        next_session_date:   nextSessionMap[agreement.client_id] ?? null,
       } as ClientRow;
     });
 

@@ -87,6 +87,16 @@ function RenewalCell({ renewalDate }: { renewalDate: string | null }) {
   return <span className="text-slate-400 text-sm font-mono">{days}d</span>;
 }
 
+function NextSessionBadge({ date }: { date: string | null }) {
+  if (!date) return <span className="text-slate-600 text-2xs font-mono">—</span>;
+  const d = new Date(date + 'T00:00:00');
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const diff = Math.round((d.getTime() - today.getTime()) / 86_400_000);
+  const label = diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow' : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  const color = diff === 0 ? 'text-emerald-400' : diff <= 2 ? 'text-amber-400' : 'text-slate-400';
+  return <span className={`text-2xs font-mono ${color}`}>{label}</span>;
+}
+
 function CopyPortalLink({ clientId }: { clientId: string }) {
   const [copied, setCopied] = useState(false);
 
@@ -291,6 +301,11 @@ export default function ClientDirectory({ clients, onSelectClient, onAddClient }
                     </span>
                     <OnboardingIndicator complete={complete} score={score} />
                     <DeletionBadge scheduledAt={agreement.deletion_scheduled_at} />
+                    {client.next_session_date && (
+                      <span className="text-2xs font-mono text-slate-600">
+                        Next: <NextSessionBadge date={client.next_session_date} />
+                      </span>
+                    )}
                   </div>
                 </div>
                 <span className="text-slate-600 text-sm flex-shrink-0">›</span>
@@ -303,12 +318,13 @@ export default function ClientDirectory({ clients, onSelectClient, onAddClient }
       {/* ── Desktop table (hidden below lg) ───────────── */}
       <div className="hidden lg:block card overflow-hidden">
         {/* Table header */}
-        <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_auto] gap-4 items-center px-4 py-2.5 border-b border-surface-border">
+        <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr_auto] gap-4 items-center px-4 py-2.5 border-b border-surface-border">
           <SortButton k="name"       label="Client" />
           <SortButton k="status"     label="Status" />
           <span className="label">Model</span>
           <SortButton k="sessions"   label="Wk Sessions" />
           <SortButton k="renewal"    label="Renewal" />
+          <span className="label">Next Session</span>
           <SortButton k="onboarding" label="Docs" />
           <span className="label">Actions</span>
         </div>
@@ -330,7 +346,7 @@ export default function ClientDirectory({ clients, onSelectClient, onAddClient }
                 <div
                   key={client.id}
                   onClick={() => onSelectClient(client)}
-                  className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_auto] gap-4 items-center px-4 py-3 hover:bg-surface-4 cursor-pointer transition-colors group"
+                  className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr_auto] gap-4 items-center px-4 py-3 hover:bg-surface-4 cursor-pointer transition-colors group"
                 >
                   {/* Client */}
                   <div className="flex items-center gap-3 min-w-0">
@@ -364,6 +380,11 @@ export default function ClientDirectory({ clients, onSelectClient, onAddClient }
 
                   {/* Renewal */}
                   <RenewalCell renewalDate={agreement.renewal_date} />
+
+                  {/* Next Session */}
+                  <div>
+                    <NextSessionBadge date={client.next_session_date} />
+                  </div>
 
                   {/* Onboarding */}
                   <OnboardingIndicator complete={complete} score={score} />

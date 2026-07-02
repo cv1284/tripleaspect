@@ -260,7 +260,7 @@ export default function SessionView({ session, agreement, client, ptEmail, hasCh
 
         {/* Stats */}
         {streak !== undefined && <CompletionStreak streak={streak} />}
-        <ClientGoalCard goalText={agreement.goal_text} goalTargetDate={agreement.goal_target_date} />
+        <ClientGoalCard goalText={agreement.goal_text} goalTargetDate={agreement.goal_target_date} goalProgress={agreement.goal_progress} />
         {recentCheckins && <WellbeingTrend checkins={recentCheckins} />}
 
         {/* Pre-session wellbeing check-in — shown only on incomplete sessions */}

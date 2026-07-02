@@ -82,6 +82,7 @@ export default function AddClientModal({ onClose, onAdded }: Props) {
       sessions_this_week:  0,
       days_until_renewal:  daysUntilRenewal(agreement.renewal_date),
       onboarding_complete: isOnboardingComplete(agreement),
+      next_session_date:   null,
     };
 
     onAdded(newClient);

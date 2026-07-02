@@ -72,7 +72,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     'consent_signed', 'consent_storage_url',
     'manual_price_numeric', 'manual_currency', 'billing_notes',
     'deletion_scheduled_at', 'deletion_reason',
-    'goal_text', 'goal_target_date',
+    'goal_text', 'goal_target_date', 'goal_progress',
   ] as const;
 
   const payload = Object.fromEntries(
@@ -124,6 +124,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     if (typeof val !== 'string' || isNaN(new Date(val).getTime())) {
       return NextResponse.json({ error: 'goal_target_date must be a valid date' }, { status: 400 });
     }
+  }
+  if ('goal_progress' in payload && payload.goal_progress !== null) {
+    const pct = Number(payload.goal_progress);
+    if (!Number.isInteger(pct) || pct < 0 || pct > 100) {
+      return NextResponse.json({ error: 'goal_progress must be an integer between 0 and 100' }, { status: 400 });
+    }
+    payload.goal_progress = pct;
   }
 
   // Validate doc storage URLs — only http/https accepted to prevent javascript:/data: XSS

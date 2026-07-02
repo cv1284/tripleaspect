@@ -140,6 +140,7 @@ export interface ClientAgreement {
   // Client goal
   goal_text:              string | null;
   goal_target_date:       string | null;
+  goal_progress:          number | null;
 
   // Stripe (future)
   stripe_customer_id:     string | null;
@@ -164,6 +165,7 @@ export interface ClientRow extends Profile {
   sessions_this_week:  number;
   days_until_renewal:  number | null;
   onboarding_complete: boolean;
+  next_session_date:   string | null;
 }
 
 // Onboarding doc type union

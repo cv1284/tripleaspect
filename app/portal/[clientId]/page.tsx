@@ -206,6 +206,7 @@ export default async function ClientPortalPage({ params }: Props) {
           <ClientGoalCard
             goalText={(agreement as unknown as ClientAgreement).goal_text}
             goalTargetDate={(agreement as unknown as ClientAgreement).goal_target_date}
+            goalProgress={(agreement as unknown as ClientAgreement).goal_progress}
           />
           <WellbeingTrend checkins={recentCheckins ?? []} />
 

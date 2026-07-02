@@ -6,10 +6,11 @@ interface CheckinData {
 }
 
 export function ClientGoalCard({
-  goalText, goalTargetDate,
+  goalText, goalTargetDate, goalProgress,
 }: {
   goalText:       string | null;
   goalTargetDate: string | null;
+  goalProgress?:  number | null;
 }) {
   if (!goalText) return null;
 
@@ -17,15 +18,32 @@ export function ClientGoalCard({
     ? new Date(goalTargetDate + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
     : null;
 
+  const pct = goalProgress ?? null;
+
   return (
-    <div className="rounded-xl bg-surface-2 border border-indigo-500/20 px-4 py-3 flex items-center gap-3">
-      <span className="text-2xl">🎯</span>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-slate-200">{goalText}</p>
-        {targetLabel && (
-          <p className="text-2xs font-mono text-slate-500 mt-0.5">Target: {targetLabel}</p>
+    <div className="rounded-xl bg-surface-2 border border-indigo-500/20 px-4 py-3">
+      <div className="flex items-center gap-3">
+        <span className="text-2xl">🎯</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-slate-200">{goalText}</p>
+          {targetLabel && (
+            <p className="text-2xs font-mono text-slate-500 mt-0.5">Target: {targetLabel}</p>
+          )}
+        </div>
+        {pct !== null && (
+          <span className="text-sm font-mono font-semibold text-indigo-400 flex-shrink-0">{pct}%</span>
         )}
       </div>
+      {pct !== null && (
+        <div className="mt-2.5">
+          <div className="h-1.5 rounded-full bg-surface-border overflow-hidden">
+            <div
+              className="h-full rounded-full bg-indigo-500 transition-all"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
