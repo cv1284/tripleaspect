@@ -4,6 +4,20 @@ All notable changes to brigid.pro are documented here.
 
 ## [Unreleased]
 
+### Nightly Audit (2026-07-03 — 0 Bugs, 3 Features Shipped)
+
+**Feature: Custom exercise editing**. PTs can now edit their own custom exercises directly from the exercise picker in SessionBuilder — no need to delete and recreate. A pencil button (✎) appears on owned exercises in the library list; tapping it opens an inline edit form pre-filled with the exercise's current name, category, description, coaching cues, and tags.
+- `PATCH /api/exercises/[id]` rewritten: previously only toggled `is_shared`. Now accepts any subset of exercise fields (name, category, description, coaching_cues, default_video_url, tags, is_shared) with per-field validation and HTML sanitisation. Ownership enforced (`is_custom && created_by_pt_id === user.id`).
+- **Files**: `app/api/exercises/[id]/route.ts`, `components/pt/SessionBuilder.tsx`
+
+**Feature: Programme duplication**. PTs can now duplicate any programme (their own or a public one) in one click. The copy is created with title "Copy of [original title]" and is_public=false, and the PT is immediately redirected to the new programme page to customise it.
+- `POST /api/programmes/[id]/duplicate` deep-copies the full tree: programme → weeks → sessions → session items. Source must be own or public (same RLS gate as GET).
+- A ⧉ Duplicate button appears in the ProgrammeBuilder toolbar alongside Print and Assign.
+- **Files**: `app/api/programmes/[id]/duplicate/route.ts`, `components/pt/ProgrammeBuilder.tsx`
+
+**Feature: GitHub Actions CI pipeline**. Every push and PR to master now runs TypeScript type-check (`tsc --noEmit`) and ESLint (`next lint`) in CI, catching regressions before they reach Vercel.
+- **Files**: `.github/workflows/ci.yml`
+
 ### Nightly Audit (2026-07-02 — 1 Bug Fixed, 2 Features Shipped)
 
 **SECURITY (MEDIUM, RESOLVED)**: `POST /api/programmes` was missing a PT role check.
