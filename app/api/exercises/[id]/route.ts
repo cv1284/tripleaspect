@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { isValidUuid, readJsonBody } from '@/lib/utils';
+import { isValidUuid, readJsonBody, stripHtmlTags } from '@/lib/utils';
 
 // PATCH /api/exercises/[id]
-// PT-only. Toggles is_shared on a custom exercise the PT created.
+// PT-only. Updates a custom exercise the PT created.
+// Accepts any subset of: name, category, description, coaching_cues,
+//   default_video_url, tags, is_shared.
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -20,10 +22,7 @@ export async function PATCH(
   if (profile?.role !== 'pt') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const body = await readJsonBody(req);
-  if (body === null || typeof (body as Record<string, unknown>).is_shared !== 'boolean') {
-    return NextResponse.json({ error: 'is_shared (boolean) is required' }, { status: 400 });
-  }
-  const { is_shared } = body as { is_shared: boolean };
+  if (body === null) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
 
   const { data: exercise } = await supabase
     .from('exercises')
@@ -36,9 +35,75 @@ export async function PATCH(
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
+  const patch: Record<string, unknown> = {};
+  const b = body as Record<string, unknown>;
+
+  // is_shared toggle
+  if ('is_shared' in b) {
+    if (typeof b.is_shared !== 'boolean') {
+      return NextResponse.json({ error: 'is_shared must be a boolean' }, { status: 400 });
+    }
+    patch.is_shared = b.is_shared;
+  }
+
+  // name
+  if ('name' in b) {
+    if (typeof b.name !== 'string' || !b.name.trim()) {
+      return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+    }
+    const cleanName = stripHtmlTags(b.name.trim());
+    if (!cleanName) return NextResponse.json({ error: 'Name is required' }, { status: 400 });
+    if (cleanName.length > 100) return NextResponse.json({ error: 'Exercise name must be 100 characters or fewer' }, { status: 400 });
+    patch.name = cleanName;
+  }
+
+  // category
+  if ('category' in b) {
+    const validCategories = ['healing', 'forging', 'verse'];
+    if (!validCategories.includes(b.category as string)) {
+      return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
+    }
+    patch.category = b.category;
+  }
+
+  // description / coaching_cues / default_video_url
+  const TEXT_MAX = 2000;
+  const URL_MAX  = 500;
+  for (const [field, limit] of [['description', TEXT_MAX], ['coaching_cues', TEXT_MAX], ['default_video_url', URL_MAX]] as [string, number][]) {
+    if (field in b) {
+      const val = b[field];
+      if (val !== null && typeof val !== 'string') {
+        return NextResponse.json({ error: `${field} must be a string` }, { status: 400 });
+      }
+      if (typeof val === 'string' && val.length > limit) {
+        return NextResponse.json({ error: `${field} must be ${limit} characters or fewer` }, { status: 400 });
+      }
+      if (field === 'default_video_url') {
+        patch[field] = typeof val === 'string' ? val.trim() || null : null;
+      } else {
+        patch[field] = typeof val === 'string' ? stripHtmlTags(val) || null : null;
+      }
+    }
+  }
+
+  // tags
+  if ('tags' in b) {
+    const rawTags = b.tags;
+    const parsedTags = typeof rawTags === 'string'
+      ? rawTags.split(',').map((t: string) => t.trim()).filter(Boolean)
+      : (Array.isArray(rawTags) ? rawTags : []);
+    if (parsedTags.length > 20) return NextResponse.json({ error: 'Maximum 20 tags allowed' }, { status: 400 });
+    if (parsedTags.some((t: string) => t.length > 50)) return NextResponse.json({ error: 'Each tag must be 50 characters or fewer' }, { status: 400 });
+    patch.tags = parsedTags.length > 0 ? parsedTags : null;
+  }
+
+  if (Object.keys(patch).length === 0) {
+    return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
+  }
+
   const { data, error } = await supabase
     .from('exercises')
-    .update({ is_shared })
+    .update(patch)
     .eq('id', id)
     .select()
     .single();

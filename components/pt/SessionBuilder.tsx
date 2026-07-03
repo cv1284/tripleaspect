@@ -93,6 +93,10 @@ function ExercisePicker({
   const [deleting,        setDeleting]        = useState<Set<string>>(new Set());
   const [deleteErr,       setDeleteErr]       = useState<string | null>(null);
   const [sharing,         setSharing]         = useState<Set<string>>(new Set());
+  const [editing,         setEditing]         = useState<Exercise | null>(null);
+  const [editEx,          setEditEx]          = useState({ name: '', category: '', description: '', coaching_cues: '', tags: '' });
+  const [editSaving,      setEditSaving]      = useState(false);
+  const [editErr,         setEditErr]         = useState<string | null>(null);
 
   const filtered = localExercises.filter(e => {
     if (catFilter !== 'all' && e.category !== catFilter) return false;
@@ -148,6 +152,36 @@ function ExercisePicker({
     onClose();
   }
 
+  function handleEditOpen(ex: Exercise, e: React.MouseEvent) {
+    e.stopPropagation();
+    setEditing(ex);
+    setEditEx({
+      name:          ex.name,
+      category:      ex.category,
+      description:   ex.description ?? '',
+      coaching_cues: ex.coaching_cues ?? '',
+      tags:          ex.tags?.join(', ') ?? '',
+    });
+    setEditErr(null);
+  }
+
+  async function handleSaveEdit() {
+    if (!editing) return;
+    if (!editEx.name.trim()) { setEditErr('Name is required.'); return; }
+    setEditSaving(true);
+    setEditErr(null);
+    const res = await fetch(`/api/exercises/${editing.id}`, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(editEx),
+    });
+    const data = await res.json();
+    setEditSaving(false);
+    if (!res.ok) { setEditErr(data.error ?? 'Failed to update exercise'); return; }
+    setLocalExercises(prev => prev.map(e => e.id === editing.id ? (data as Exercise) : e));
+    setEditing(null);
+  }
+
   return (
     <>
       <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 animate-fade-in" onClick={onClose} />
@@ -157,25 +191,30 @@ function ExercisePicker({
         <div className="p-4 border-b border-surface-border">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
-              <h3 className="font-semibold text-slate-200">{creating ? 'Create Exercise' : 'Add Exercise'}</h3>
+              <h3 className="font-semibold text-slate-200">{editing ? 'Edit Exercise' : creating ? 'Create Exercise' : 'Add Exercise'}</h3>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => { setCreating(c => !c); setCreateErr(null); }}
-                className={`text-xs font-mono px-2.5 py-1 rounded-lg border transition-colors ${
-                  creating
-                    ? 'bg-surface-4 text-slate-300 border-surface-border'
-                    : 'text-indigo-400 border-indigo-500/30 hover:bg-indigo-500/10'
-                }`}
-              >
-                {creating ? '← Back to library' : '+ Create new'}
-              </button>
+              {(creating || editing) ? (
+                <button
+                  onClick={() => { setCreating(false); setEditing(null); setCreateErr(null); setEditErr(null); }}
+                  className="text-xs font-mono px-2.5 py-1 rounded-lg border bg-surface-4 text-slate-300 border-surface-border transition-colors"
+                >
+                  ← Back to library
+                </button>
+              ) : (
+                <button
+                  onClick={() => { setCreating(true); setCreateErr(null); }}
+                  className="text-xs font-mono px-2.5 py-1 rounded-lg border text-indigo-400 border-indigo-500/30 hover:bg-indigo-500/10 transition-colors"
+                >
+                  + Create new
+                </button>
+              )}
               <button onClick={onClose} className="btn-ghost px-2 text-lg leading-none">×</button>
             </div>
           </div>
 
           {/* Search / category filters — only in library mode */}
-          {!creating && (
+          {!creating && !editing && (
             <>
               <input
                 autoFocus
@@ -208,7 +247,7 @@ function ExercisePicker({
         </div>
 
         {/* Library list */}
-        {!creating && (
+        {!creating && !editing && (
           <div className="overflow-y-auto" style={{ maxHeight: '50vh' }}>
             {deleteErr && (
               <p className="px-4 py-2 text-xs font-mono text-red-400 border-b border-surface-border">{deleteErr}</p>
@@ -261,6 +300,14 @@ function ExercisePicker({
                     </button>
                     {isOwned && (
                       <>
+                        <button
+                          type="button"
+                          onClick={e => handleEditOpen(ex, e)}
+                          title="Edit exercise"
+                          className="flex-shrink-0 px-2 py-3 text-slate-600 hover:text-indigo-400 transition-colors text-xs font-mono"
+                        >
+                          ✎
+                        </button>
                         <button
                           type="button"
                           onClick={e => handleToggleShare(ex, e)}
@@ -334,6 +381,48 @@ function ExercisePicker({
             {createErr && <p className="text-xs font-mono text-red-400">{createErr}</p>}
             <button onClick={handleCreate} disabled={saving} className="btn-primary w-full justify-center">
               {saving ? <span className="flex items-center gap-2"><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Saving...</span> : 'Create & Add to Session'}
+            </button>
+          </div>
+        )}
+
+        {/* Edit form */}
+        {editing && (
+          <div className="overflow-y-auto p-4 space-y-3" style={{ maxHeight: '55vh' }}>
+            <div>
+              <label className="label block mb-1">Name <span className="text-red-400">*</span></label>
+              <input autoFocus type="text" value={editEx.name} onChange={e => setEditEx(p => ({ ...p, name: e.target.value }))} className="input" />
+            </div>
+            <div>
+              <label className="label block mb-2">Category</label>
+              <div className="grid grid-cols-3 gap-2">
+                {(['healing', 'forging', 'verse'] as SessionCategory[]).map(c => {
+                  const cfg = CATEGORY_CONFIG[c];
+                  return (
+                    <button key={c} type="button" onClick={() => setEditEx(p => ({ ...p, category: c }))}
+                      className={`flex items-center justify-center gap-1.5 py-2 rounded-lg border text-xs font-medium transition-all ${
+                        editEx.category === c ? `${cfg.bg} ${cfg.color} border-current/30` : 'bg-surface-3 text-slate-500 border-surface-border'
+                      }`}>
+                      <span>{cfg.icon}</span> {cfg.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div>
+              <label className="label block mb-1">Description</label>
+              <input type="text" value={editEx.description} onChange={e => setEditEx(p => ({ ...p, description: e.target.value }))} className="input" placeholder="Brief description" />
+            </div>
+            <div>
+              <label className="label block mb-1">Default Coaching Cues</label>
+              <textarea rows={2} value={editEx.coaching_cues} onChange={e => setEditEx(p => ({ ...p, coaching_cues: e.target.value }))} className="input resize-none" placeholder="Key technique points..." />
+            </div>
+            <div>
+              <label className="label block mb-1">Tags <span className="text-slate-600 font-sans normal-case text-xs">(comma-separated)</span></label>
+              <input type="text" value={editEx.tags} onChange={e => setEditEx(p => ({ ...p, tags: e.target.value }))} className="input" placeholder="e.g. adductor, unilateral, strength" />
+            </div>
+            {editErr && <p className="text-xs font-mono text-red-400">{editErr}</p>}
+            <button onClick={handleSaveEdit} disabled={editSaving} className="btn-primary w-full justify-center">
+              {editSaving ? <span className="flex items-center gap-2"><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Saving...</span> : 'Save Changes'}
             </button>
           </div>
         )}

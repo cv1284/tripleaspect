@@ -263,10 +263,11 @@ export default function ProgrammeBuilder({ programme: initial, clients }: Props)
   const [programme,    setProgramme]    = useState<Programme>(initial);
   const [activeWeek,   setActiveWeek]   = useState(0); // 0-based index
   const [editingSlot,  setEditingSlot]  = useState<{ weekId: string; dayOfWeek: number; session?: ProgrammeSession } | null>(null);
-  const [showAssign,   setShowAssign]   = useState(false);
-  const [saving,       setSaving]       = useState(false);
-  const [saveMsg,      setSaveMsg]      = useState<string | null>(null);
+  const [showAssign,    setShowAssign]    = useState(false);
+  const [saving,        setSaving]        = useState(false);
+  const [saveMsg,       setSaveMsg]       = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [duplicating,   setDuplicating]   = useState(false);
 
   const weeks = programme.weeks ?? [];
   const currentWeek = weeks[activeWeek] as ProgrammeWeek | undefined;
@@ -352,6 +353,15 @@ export default function ProgrammeBuilder({ programme: initial, clients }: Props)
     setShowAssign(true);
   }
 
+  async function handleDuplicate() {
+    setDuplicating(true);
+    const res = await fetch(`/api/programmes/${programme.id}/duplicate`, { method: 'POST' });
+    setDuplicating(false);
+    if (!res.ok) return;
+    const copy = await res.json();
+    router.push(`/pt/programmes/${copy.id}`);
+  }
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 pb-28 space-y-6">
 
@@ -375,6 +385,18 @@ export default function ProgrammeBuilder({ programme: initial, clients }: Props)
               {saveMsg}
             </span>
           )}
+          <button
+            onClick={handleDuplicate}
+            disabled={duplicating || saving}
+            className="btn-ghost text-sm text-slate-400 hover:text-slate-200"
+          >
+            {duplicating ? (
+              <span className="flex items-center gap-1.5">
+                <span className="w-3.5 h-3.5 border-2 border-slate-400/30 border-t-slate-400 rounded-full animate-spin" />
+                Copying…
+              </span>
+            ) : '⧉ Duplicate'}
+          </button>
           <a
             href={`/pt/programmes/${programme.id}/print`}
             target="_blank"
