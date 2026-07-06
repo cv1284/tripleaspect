@@ -23,12 +23,14 @@ export function verifyToken(token: string): { agreementId: string } | null {
   const payload = token.slice(0, dot);
   const sig     = token.slice(dot + 1);
 
-  const expectedSig = createHmac('sha256', secret()).update(payload).digest('base64url');
+  const expectedSig   = createHmac('sha256', secret()).update(payload).digest('base64url');
+  const sigBuffer     = Buffer.from(sig, 'base64url');
+  const expectedBuffer = Buffer.from(expectedSig, 'base64url');
 
-  // Constant-time comparison — both buffers must be same length (base64url of sha256 always is)
-  if (!timingSafeEqual(Buffer.from(sig, 'base64url'), Buffer.from(expectedSig, 'base64url'))) {
-    return null;
-  }
+  // timingSafeEqual throws on length mismatch, so reject malformed/tampered
+  // signatures of the wrong length before the constant-time comparison.
+  if (sigBuffer.length !== expectedBuffer.length) return null;
+  if (!timingSafeEqual(sigBuffer, expectedBuffer)) return null;
 
   try {
     const { agreementId, exp } = JSON.parse(

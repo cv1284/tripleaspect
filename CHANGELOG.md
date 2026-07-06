@@ -4,6 +4,29 @@ All notable changes to brigid.pro are documented here.
 
 ## [Unreleased]
 
+### Nightly Audit (2026-07-06 — 4 Bugs Fixed, 0 Features Shipped)
+
+**BUG-59 (HIGH, RESOLVED)**: Progress photo upload completely broken in production.
+- **Root cause**: `POST /api/portal/photos` returned 500 "Bucket not found". The `progress-photos` Storage bucket was never created, and investigation found the `progress_photos` table from migration 007 had never actually been applied to the live database either — this feature has been listed as shipped since 03 Jun 2026 but was non-functional from launch.
+- **Fix**: Created the bucket live via the Storage Admin API; applied `007_progress_photos.sql` and new `015_progress_photos_bucket.sql` (bucket + storage.objects RLS policies) via `supabase db query --linked --file`. Verified end-to-end: client upload → 201 → delete → 200.
+- **Files**: `supabase/migrations/015_progress_photos_bucket.sql`
+
+**BUG-62 (CRITICAL, RESOLVED)**: IDOR in `POST /api/programmes/[id]/save-tree` — week ownership not checked against URL programme.
+- **Root cause**: The route verified the *programme* in the URL belongs to the caller, but never checked that `week.id` values in the request body belong to that programme, allowing any of the PT's own weeks (and, if RLS were ever misconfigured, potentially another PT's) to be silently wiped and overwritten via a different programme's URL.
+- **Fix**: `save-tree` now queries `programme_weeks` scoped to the URL's `programme_id` and filters the request body against that owned set before writing.
+- **Files**: `app/api/programmes/[id]/save-tree/route.ts`
+
+**BUG-60 (MEDIUM, RESOLVED)**: `POST/PATCH /api/exercises` accepted non-http(s) `default_video_url` (e.g. `javascript:alert(1)`), unlike the equivalent doc-URL fields elsewhere in the app.
+- **Fix**: Added the same `new URL()` + http/https-only protocol check used on agreements and bug-reports, on both create and update.
+- **Files**: `app/api/exercises/route.ts`, `app/api/exercises/[id]/route.ts`
+
+**BUG-63 (MEDIUM, RESOLVED)**: `GET /api/inactivity-response` crashed with a raw 500 on a malformed token.
+- **Root cause**: `verifyToken()` called `timingSafeEqual()` without first checking both buffers were equal length; a signature segment that didn't decode to exactly 32 bytes threw an uncaught `RangeError` instead of failing gracefully. This is a public, token-authenticated endpoint that receives arbitrary input from email-link scanners and proxies.
+- **Fix**: Added an explicit length check before `timingSafeEqual()`, returning `null` (→ friendly error page) for any malformed signature.
+- **Files**: `lib/inactivity-token.ts`
+
+**Not fixed tonight**: BUG-61 (SessionBuilder's direct-to-Supabase write path still has no server-side validation — client-side sanitisation added 2026-06-30 doesn't protect against direct API calls that bypass the app's JS) — deferred as a larger change requiring a new API route.
+
 ### Nightly Audit (2026-07-03 — 0 Bugs, 3 Features Shipped)
 
 **Feature: Custom exercise editing**. PTs can now edit their own custom exercises directly from the exercise picker in SessionBuilder — no need to delete and recreate. A pencil button (✎) appears on owned exercises in the library list; tapping it opens an inline edit form pre-filled with the exercise's current name, category, description, coaching cues, and tags.

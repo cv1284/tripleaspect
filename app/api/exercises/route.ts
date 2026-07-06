@@ -39,6 +39,18 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Only http/https accepted to prevent javascript:/data: XSS via the video player
+  if (typeof default_video_url === 'string' && default_video_url.trim()) {
+    try {
+      const { protocol } = new URL(default_video_url.trim());
+      if (protocol !== 'http:' && protocol !== 'https:') {
+        return NextResponse.json({ error: 'default_video_url: only http/https URLs are accepted' }, { status: 400 });
+      }
+    } catch {
+      return NextResponse.json({ error: 'default_video_url: must be a valid URL' }, { status: 400 });
+    }
+  }
+
   const parsedTags = typeof tags === 'string'
     ? tags.split(',').map((t: string) => t.trim()).filter(Boolean)
     : (tags ?? []);

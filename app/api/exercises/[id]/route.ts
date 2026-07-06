@@ -79,7 +79,18 @@ export async function PATCH(
         return NextResponse.json({ error: `${field} must be ${limit} characters or fewer` }, { status: 400 });
       }
       if (field === 'default_video_url') {
-        patch[field] = typeof val === 'string' ? val.trim() || null : null;
+        const trimmed = typeof val === 'string' ? val.trim() : '';
+        if (trimmed) {
+          try {
+            const { protocol } = new URL(trimmed);
+            if (protocol !== 'http:' && protocol !== 'https:') {
+              return NextResponse.json({ error: 'default_video_url: only http/https URLs are accepted' }, { status: 400 });
+            }
+          } catch {
+            return NextResponse.json({ error: 'default_video_url: must be a valid URL' }, { status: 400 });
+          }
+        }
+        patch[field] = trimmed || null;
       } else {
         patch[field] = typeof val === 'string' ? stripHtmlTags(val) || null : null;
       }

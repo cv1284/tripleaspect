@@ -45,8 +45,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const weeks = (body as { weeks: WeekPayload[] }).weeks;
   const validCategories = ['healing', 'forging', 'verse'];
 
+  // Verify every referenced week actually belongs to *this* programme —
+  // without this, a caller could target another one of their own (or, if
+  // RLS were ever misconfigured, another PT's) programme's weeks by id.
+  const requestedIds = weeks.map(w => w.id).filter(isValidUuid);
+  const { data: ownedWeeks } = requestedIds.length
+    ? await supabase
+        .from('programme_weeks')
+        .select('id')
+        .eq('programme_id', id)
+        .in('id', requestedIds)
+    : { data: [] };
+  const ownedWeekIds = new Set((ownedWeeks ?? []).map(w => w.id));
+
   for (const week of weeks) {
-    if (!isValidUuid(week.id)) continue;
+    if (!isValidUuid(week.id) || !ownedWeekIds.has(week.id)) continue;
 
     // Wipe existing sessions for this week then re-insert
     await supabase.from('programme_sessions').delete().eq('week_id', week.id);
