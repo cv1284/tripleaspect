@@ -57,20 +57,31 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         .in('id', requestedIds)
     : { data: [] };
   const ownedWeekIds = new Set((ownedWeeks ?? []).map(w => w.id));
+  const targetWeeks = weeks.filter(w => isValidUuid(w.id) && ownedWeekIds.has(w.id));
 
-  for (const week of weeks) {
-    if (!isValidUuid(week.id) || !ownedWeekIds.has(week.id)) continue;
+  // Validate every session in every targeted week BEFORE deleting anything —
+  // otherwise one invalid session anywhere in the payload silently wipes
+  // that week's already-saved sessions with no replacement (data loss).
+  for (const week of targetWeeks) {
+    for (const s of week.sessions ?? []) {
+      const validSession =
+        typeof s.title === 'string' && s.title.trim() &&
+        validCategories.includes(s.category) &&
+        s.day_of_week >= 1 && s.day_of_week <= 7;
+      if (!validSession) {
+        return NextResponse.json({ error: 'One or more sessions failed validation; no changes were saved' }, { status: 400 });
+      }
+    }
+  }
 
+  for (const week of targetWeeks) {
     // Wipe existing sessions for this week then re-insert
     await supabase.from('programme_sessions').delete().eq('week_id', week.id);
 
-    const valid = (week.sessions ?? []).filter(
-      s => s.title?.trim() && validCategories.includes(s.category) && s.day_of_week >= 1 && s.day_of_week <= 7,
-    );
-
-    if (valid.length > 0) {
+    const sessions = week.sessions ?? [];
+    if (sessions.length > 0) {
       await supabase.from('programme_sessions').insert(
-        valid.map((s, idx) => ({
+        sessions.map((s, idx) => ({
           week_id:     week.id,
           day_of_week: s.day_of_week,
           title:       stripHtmlTags(s.title.trim()),

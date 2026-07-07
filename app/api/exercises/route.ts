@@ -51,11 +51,16 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  if (tags !== undefined && tags !== null && typeof tags !== 'string' && !Array.isArray(tags)) {
+    return NextResponse.json({ error: 'tags must be a string or array' }, { status: 400 });
+  }
   const parsedTags = typeof tags === 'string'
     ? tags.split(',').map((t: string) => t.trim()).filter(Boolean)
-    : (tags ?? []);
+    : (Array.isArray(tags) ? tags : []);
   if (parsedTags.length > 20) return NextResponse.json({ error: 'Maximum 20 tags allowed' }, { status: 400 });
-  if (parsedTags.some((t: string) => t.length > 50)) return NextResponse.json({ error: 'Each tag must be 50 characters or fewer' }, { status: 400 });
+  if (parsedTags.some((t: unknown) => typeof t !== 'string' || t.length > 50)) {
+    return NextResponse.json({ error: 'Each tag must be a string of 50 characters or fewer' }, { status: 400 });
+  }
 
   const { data, error } = await supabase
     .from('exercises')

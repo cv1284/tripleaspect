@@ -4,6 +4,30 @@ All notable changes to brigid.pro are documented here.
 
 ## [Unreleased]
 
+### Nightly Audit (2026-07-07 — 3 Bugs Fixed, 1 Feature Shipped)
+
+**BUG-66 (HIGH, RESOLVED)**: `POST /api/programmes/[id]/save-tree` silently wiped a week's existing sessions on any partially-invalid payload.
+- **Root cause**: The route deleted all of a week's existing `programme_sessions` *before* filtering out invalid entries in the new payload. A request containing even one session with an out-of-range `day_of_week` returned `{"ok":true}` while silently deleting every previously-saved session for that week and inserting nothing in its place.
+- **Fix**: Every session in every targeted week is now validated up front; if any session fails validation, the whole request is rejected with 400 and no deletes are performed. Only once the full payload passes validation does the wipe-and-reinsert proceed.
+- **Files**: `app/api/programmes/[id]/save-tree/route.ts`
+
+**BUG-64 (MEDIUM, RESOLVED)**: `POST /api/exercises` crashed with an unhandled 500 on a non-array/non-string `tags` value (e.g. `tags: 12345`).
+- **Root cause**: `parsedTags = typeof tags === 'string' ? ... : (tags ?? [])` let a number/boolean/object fall through as `parsedTags`, and the subsequent `.length`/`.some()` calls threw a `TypeError` since those methods don't exist on non-arrays.
+- **Fix**: Added an explicit `typeof`/`Array.isArray` guard returning 400 before the ternary, matching the pattern already used in the PATCH handler.
+- **Files**: `app/api/exercises/route.ts`
+
+**BUG-68 (LOW-MEDIUM, RESOLVED)**: `PATCH /api/agreements/[id]` didn't type-check `parq_signed`/`waiver_signed`/`consent_signed`, leaking a raw Postgres error as a 500 on a non-boolean value.
+- **Fix**: Added a boolean type check for the three `*_signed` fields alongside the endpoint's other typed-field validators, mirroring the `is_shared` check on `PATCH /api/exercises/[id]`.
+- **Files**: `app/api/agreements/[id]/route.ts`
+
+**Not fixed tonight**: BUG-65 (SessionBuilder's direct-to-Supabase write path still has no server-side validation — same underlying gap as the still-open Notion BUG-67/BUG-61) and BUG-67 (progress photo upload trusts the client-declared MIME type with no magic-byte check) — both deferred as larger architectural changes.
+
+**Feature: Exercise video upload**. PTs can now upload an MP4/WebM/MOV/GIF demo video directly when creating or editing a custom exercise, as an alternative to pasting a YouTube URL — the backlog item this was written against was already staged as an unapplied migration (`014_exercise_videos_bucket.sql`) from a prior session.
+- Applied `014_exercise_videos_bucket.sql` live (creates the `exercise-videos` public Storage bucket + owner-scoped RLS policies), via `supabase db query --linked --file`.
+- New `POST /api/exercises/video` route (PT-only) uploads to the bucket at `{ptId}/{uuid}.{ext}` and returns a public URL; `default_video_url` already supported hosted mp4/webm/mov/gif playback in `VideoPlayer.tsx`, so no player changes were needed.
+- The exercise create/edit forms in `SessionBuilder.tsx`'s `ExercisePicker` now include a Demo Video URL field plus an upload control that fills it in automatically.
+- **Files**: `supabase/migrations/014_exercise_videos_bucket.sql`, `app/api/exercises/video/route.ts`, `components/pt/SessionBuilder.tsx`
+
 ### Nightly Audit (2026-07-06 — 4 Bugs Fixed, 0 Features Shipped)
 
 **BUG-59 (HIGH, RESOLVED)**: Progress photo upload completely broken in production.

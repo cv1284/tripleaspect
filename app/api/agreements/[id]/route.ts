@@ -133,6 +133,16 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     payload.goal_progress = pct;
   }
 
+  // Type-check the *_signed booleans before hitting the DB, same as every
+  // other typed field on this endpoint — otherwise a non-boolean value
+  // reaches Postgres and its raw error message leaks through as a 500.
+  const signedFields = ['parq_signed', 'waiver_signed', 'consent_signed'] as const;
+  for (const field of signedFields) {
+    if (field in payload && typeof payload[field] !== 'boolean') {
+      return NextResponse.json({ error: `${field} must be a boolean` }, { status: 400 });
+    }
+  }
+
   // Validate doc storage URLs — only http/https accepted to prevent javascript:/data: XSS
   const docUrlFields = ['parq_storage_url', 'waiver_storage_url', 'consent_storage_url'] as const;
   for (const field of docUrlFields) {

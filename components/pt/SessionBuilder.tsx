@@ -86,17 +86,31 @@ function ExercisePicker({
   const [search,          setSearch]          = useState('');
   const [catFilter,       setCatFilter]       = useState<SessionCategory | 'all'>('all');
   const [creating,        setCreating]        = useState(false);
-  const [newEx,           setNewEx]           = useState({ name: '', category: category as string, description: '', coaching_cues: '', tags: '' });
+  const [newEx,           setNewEx]           = useState({ name: '', category: category as string, description: '', coaching_cues: '', tags: '', default_video_url: '' });
   const [saving,          setSaving]          = useState(false);
   const [createErr,       setCreateErr]       = useState<string | null>(null);
+  const [uploadingVideo,  setUploadingVideo]  = useState(false);
   const [localExercises,  setLocalExercises]  = useState<Exercise[]>(exercises);
   const [deleting,        setDeleting]        = useState<Set<string>>(new Set());
   const [deleteErr,       setDeleteErr]       = useState<string | null>(null);
   const [sharing,         setSharing]         = useState<Set<string>>(new Set());
   const [editing,         setEditing]         = useState<Exercise | null>(null);
-  const [editEx,          setEditEx]          = useState({ name: '', category: '', description: '', coaching_cues: '', tags: '' });
+  const [editEx,          setEditEx]          = useState({ name: '', category: '', description: '', coaching_cues: '', tags: '', default_video_url: '' });
   const [editSaving,      setEditSaving]      = useState(false);
   const [editErr,         setEditErr]         = useState<string | null>(null);
+  const [editUploadingVideo, setEditUploadingVideo] = useState(false);
+
+  async function handleVideoUpload(file: File, onDone: (url: string) => void, onErr: (msg: string | null) => void, setUploading: (b: boolean) => void) {
+    setUploading(true);
+    onErr(null);
+    const body = new FormData();
+    body.append('video', file);
+    const res = await fetch('/api/exercises/video', { method: 'POST', body });
+    const data = await res.json();
+    setUploading(false);
+    if (!res.ok) { onErr(data.error ?? 'Failed to upload video'); return; }
+    onDone(data.url as string);
+  }
 
   const filtered = localExercises.filter(e => {
     if (catFilter !== 'all' && e.category !== catFilter) return false;
@@ -161,6 +175,7 @@ function ExercisePicker({
       description:   ex.description ?? '',
       coaching_cues: ex.coaching_cues ?? '',
       tags:          ex.tags?.join(', ') ?? '',
+      default_video_url: ex.default_video_url ?? '',
     });
     setEditErr(null);
   }
@@ -378,6 +393,27 @@ function ExercisePicker({
               <label className="label block mb-1">Tags <span className="text-slate-600 font-sans normal-case text-xs">(comma-separated)</span></label>
               <input type="text" value={newEx.tags} onChange={e => setNewEx(p => ({ ...p, tags: e.target.value }))} className="input" placeholder="e.g. adductor, unilateral, strength" />
             </div>
+            <div>
+              <label className="label block mb-1">Demo Video <span className="text-slate-600 font-sans normal-case text-xs">(YouTube URL, or upload a video/GIF)</span></label>
+              <input type="text" value={newEx.default_video_url} onChange={e => setNewEx(p => ({ ...p, default_video_url: e.target.value }))} className="input mb-1.5" placeholder="https://... or upload below" />
+              <label className="flex items-center gap-2 text-xs font-mono text-indigo-400 cursor-pointer hover:text-indigo-300 transition-colors w-fit">
+                {uploadingVideo ? (
+                  <span className="flex items-center gap-2"><span className="w-3.5 h-3.5 border-2 border-indigo-400/30 border-t-indigo-400 rounded-full animate-spin" />Uploading...</span>
+                ) : '⬆ Upload MP4 / WebM / MOV / GIF'}
+                <input
+                  type="file"
+                  accept="video/mp4,video/webm,video/quicktime,image/gif"
+                  className="hidden"
+                  disabled={uploadingVideo}
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    handleVideoUpload(file, url => setNewEx(p => ({ ...p, default_video_url: url })), setCreateErr, setUploadingVideo);
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+            </div>
             {createErr && <p className="text-xs font-mono text-red-400">{createErr}</p>}
             <button onClick={handleCreate} disabled={saving} className="btn-primary w-full justify-center">
               {saving ? <span className="flex items-center gap-2"><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Saving...</span> : 'Create & Add to Session'}
@@ -419,6 +455,27 @@ function ExercisePicker({
             <div>
               <label className="label block mb-1">Tags <span className="text-slate-600 font-sans normal-case text-xs">(comma-separated)</span></label>
               <input type="text" value={editEx.tags} onChange={e => setEditEx(p => ({ ...p, tags: e.target.value }))} className="input" placeholder="e.g. adductor, unilateral, strength" />
+            </div>
+            <div>
+              <label className="label block mb-1">Demo Video <span className="text-slate-600 font-sans normal-case text-xs">(YouTube URL, or upload a video/GIF)</span></label>
+              <input type="text" value={editEx.default_video_url} onChange={e => setEditEx(p => ({ ...p, default_video_url: e.target.value }))} className="input mb-1.5" placeholder="https://... or upload below" />
+              <label className="flex items-center gap-2 text-xs font-mono text-indigo-400 cursor-pointer hover:text-indigo-300 transition-colors w-fit">
+                {editUploadingVideo ? (
+                  <span className="flex items-center gap-2"><span className="w-3.5 h-3.5 border-2 border-indigo-400/30 border-t-indigo-400 rounded-full animate-spin" />Uploading...</span>
+                ) : '⬆ Upload MP4 / WebM / MOV / GIF'}
+                <input
+                  type="file"
+                  accept="video/mp4,video/webm,video/quicktime,image/gif"
+                  className="hidden"
+                  disabled={editUploadingVideo}
+                  onChange={e => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    handleVideoUpload(file, url => setEditEx(p => ({ ...p, default_video_url: url })), setEditErr, setEditUploadingVideo);
+                    e.target.value = '';
+                  }}
+                />
+              </label>
             </div>
             {editErr && <p className="text-xs font-mono text-red-400">{editErr}</p>}
             <button onClick={handleSaveEdit} disabled={editSaving} className="btn-primary w-full justify-center">
