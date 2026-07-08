@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient }      from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { stripHtmlTags, isValidUuid } from '@/lib/utils';
+import { stripHtmlTags, isValidUuid, isValidDateString } from '@/lib/utils';
 
 const BUCKET        = 'progress-photos';
 const MAX_BYTES     = 10 * 1024 * 1024; // 10 MB
@@ -32,10 +32,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Photo must be under 10 MB.' }, { status: 400 });
   }
 
-  // Validate taken_at if provided
-  const dateValue = takenAt && takenAt.match(/^\d{4}-\d{2}-\d{2}$/)
-    ? takenAt
-    : new Date().toISOString().split('T')[0];
+  // Validate taken_at if provided — a shape-only regex would accept
+  // calendar-invalid values like "2026-13-99" and raw-500 out of Postgres
+  if (takenAt && !isValidDateString(takenAt)) {
+    return NextResponse.json({ error: 'taken_at must be a valid date (YYYY-MM-DD)' }, { status: 400 });
+  }
+  const dateValue = takenAt || new Date().toISOString().split('T')[0];
 
   const ext    = file.type.split('/')[1];
   const path   = `${user.id}/${Date.now()}.${ext}`;

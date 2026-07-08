@@ -4,6 +4,31 @@ All notable changes to brigid.pro are documented here.
 
 ## [Unreleased]
 
+### Nightly Audit (2026-07-08 — 3 Bugs Fixed, 1 Feature Shipped)
+
+**BUG-71/72/73 (RESOLVED)**: `POST /api/programmes/[id]/save-tree` had three related data-integrity gaps in the same validation pass.
+- **Duplicate week id (ref 71)**: a payload with two `weeks[]` entries sharing the same `id` both passed the ownership check, then the sequential delete+insert loop let the second occurrence's delete wipe the first occurrence's just-inserted sessions — silent data loss behind a `200 {ok:true}`.
+- **Silently dropped weeks (ref 72)**: weeks whose `id` failed `isValidUuid` or weren't in the caller's owned set were filtered out of `targetWeeks` with no error surfaced — the client believed the full tree saved when part of it was silently dropped.
+- **`day_of_week` type coercion (ref 73)**: the range check (`>=1 && <=7`) had no `typeof === 'number'` guard, so a numeric string (`"3"`) or float (`3.5`) passed via JS coercion and reached the DB unvalidated.
+- **Fix**: reject duplicate week ids up front (400, no writes); reject the whole request (400) if any week doesn't resolve to an owned week; added `typeof === 'number' && Number.isInteger()` to the `day_of_week` guard.
+- **Files**: `app/api/programmes/[id]/save-tree/route.ts`
+
+**BUG-74/75/76 (RESOLVED)**: Three routes validated `YYYY-MM-DD` dates with either no calendar-validity check or a shape-only regex, both of which accept nonsense values.
+- `POST /api/clients` (`start_date`/`renewal_date`, ref 74): zero format/range validation — malformed input raw-500s from Postgres, or nonsense dates (`1900-01-01`, `9999-12-31`) were silently stored.
+- `PATCH /api/agreements/[id]` (`goal_target_date`, ref 75): validated via `isNaN(new Date(val).getTime())`, which accepts calendar-invalid dates that JS silently rolls over (e.g. `2026-02-30` → March 2).
+- `POST /api/portal/photos` (`taken_at`, ref 76): shape-only regex (`^\d{4}-\d{2}-\d{2}$`) — `2026-13-99` passed the app-level check and would raw-500 out of Postgres.
+- **Fix**: added a shared `isValidDateString()` helper (`lib/utils.ts`) that checks shape + calendar validity via `date-fns` `parseISO`/`isValid` + a sane year bound (2000–2100 by default), applied at all three call sites.
+- **Files**: `lib/utils.ts`, `app/api/clients/route.ts`, `app/api/agreements/[id]/route.ts`, `app/api/portal/photos/route.ts`
+
+**BUG-77 (RESOLVED)**: `POST /api/clients` — `full_name` validation was gated behind `typeof full_name === 'string'`, so a non-string (number/object/array) skipped validation entirely and reached `profiles.upsert(...)` unvalidated; it also skipped `stripHtmlTags`, unlike comparable name/title fields elsewhere.
+- **Fix**: reject non-string `full_name` with 400; apply `stripHtmlTags` before storage.
+- **Files**: `app/api/clients/route.ts`
+
+**Not fixed tonight**: BUG-78 (Stripe setup error swallowed on client creation, needs a product decision), BUG-79 (`admin/pts` `free_client_quota` admits NaN/Infinity/non-integers, low exploitability), BUG-80 (`templates` POST spreads unvalidated item objects into the insert, larger change), BUG-81 (`templates/duplicate` title has no length clamp), BUG-83 (`manual_price_numeric` truthy-check treats a valid `£0` as "no price", may be intentional) — all logged as open in `bug_reports`, deferred.
+
+**Feature: Invite resend cooldown (BUG-82, resolved as part of this ship)**. `POST /api/clients/[id]/resend-invite` had no rate limiting anywhere — a PT could spam a client's inbox with repeated calls. Added a `last_invite_resent_at` column on `client_agreements` (migration `016_invite_resend_cooldown.sql`) and a 60-second cooldown; a resend attempted before the cooldown elapses returns `429` with the remaining wait time.
+- **Files**: `supabase/migrations/016_invite_resend_cooldown.sql`, `app/api/clients/[id]/resend-invite/route.ts`
+
 ### Nightly Audit (2026-07-07 — 3 Bugs Fixed, 1 Feature Shipped)
 
 **BUG-66 (HIGH, RESOLVED)**: `POST /api/programmes/[id]/save-tree` silently wiped a week's existing sessions on any partially-invalid payload.

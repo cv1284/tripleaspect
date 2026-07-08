@@ -1,4 +1,4 @@
-import { differenceInDays, parseISO, startOfWeek, endOfWeek, isWithinInterval } from 'date-fns';
+import { differenceInDays, parseISO, startOfWeek, endOfWeek, isWithinInterval, isValid } from 'date-fns';
 import { NextRequest } from 'next/server';
 import { AgreementStatus, ClientAgreement, SessionCategory } from '@/types/database';
 
@@ -24,6 +24,26 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 
 export function isValidUuid(id: string): boolean {
   return UUID_REGEX.test(id);
+}
+
+// ─── Date String Validation ───────────────────────────────
+// `isNaN(new Date(str).getTime())` (the pattern used elsewhere) silently
+// rolls invalid calendar dates over instead of rejecting them — e.g.
+// "2026-02-30" becomes March 2. Shape-only regexes (`^\d{4}-\d{2}-\d{2}$`)
+// have the same gap: "2026-13-99" matches the shape but isn't a real date.
+// Routes accepting a YYYY-MM-DD date from the client should validate with
+// this helper instead, which also rejects nonsense-but-technically-valid
+// dates (e.g. year 1900 or 9999) via a sane default bound.
+const DATE_SHAPE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+export function isValidDateString(
+  str: unknown,
+  { minYear = 2000, maxYear = 2100 }: { minYear?: number; maxYear?: number } = {},
+): str is string {
+  if (typeof str !== 'string' || !DATE_SHAPE_REGEX.test(str)) return false;
+  if (!isValid(parseISO(str))) return false;
+  const year = Number(str.slice(0, 4));
+  return year >= minYear && year <= maxYear;
 }
 
 // ─── Date Utilities ───────────────────────────────────────

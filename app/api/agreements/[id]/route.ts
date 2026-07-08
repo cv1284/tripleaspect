@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { readJsonBody, isValidUuid, stripHtmlTags } from '@/lib/utils';
+import { readJsonBody, isValidUuid, isValidDateString, stripHtmlTags } from '@/lib/utils';
 
 interface Params { params: Promise<{ id: string }> }
 
@@ -120,9 +120,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     payload.goal_text = stripHtmlTags(val).slice(0, 280) || null;
   }
   if ('goal_target_date' in payload && payload.goal_target_date !== null) {
-    const val = payload.goal_target_date;
-    if (typeof val !== 'string' || isNaN(new Date(val).getTime())) {
-      return NextResponse.json({ error: 'goal_target_date must be a valid date' }, { status: 400 });
+    if (!isValidDateString(payload.goal_target_date)) {
+      return NextResponse.json({ error: 'goal_target_date must be a valid date (YYYY-MM-DD)' }, { status: 400 });
     }
   }
   if ('goal_progress' in payload && payload.goal_progress !== null) {

@@ -45,6 +45,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const weeks = (body as { weeks: WeekPayload[] }).weeks;
   const validCategories = ['healing', 'forging', 'verse'];
 
+  // Reject duplicate week ids up front — with duplicates, the sequential
+  // delete+insert loop below would let a later occurrence's delete wipe an
+  // earlier occurrence's just-inserted sessions, silently discarding data.
+  const idCounts = new Map<string, number>();
+  for (const w of weeks) idCounts.set(w.id, (idCounts.get(w.id) ?? 0) + 1);
+  if ([...idCounts.values()].some(n => n > 1)) {
+    return NextResponse.json({ error: 'Duplicate week id in payload; no changes were saved' }, { status: 400 });
+  }
+
   // Verify every referenced week actually belongs to *this* programme —
   // without this, a caller could target another one of their own (or, if
   // RLS were ever misconfigured, another PT's) programme's weeks by id.
@@ -59,6 +68,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const ownedWeekIds = new Set((ownedWeeks ?? []).map(w => w.id));
   const targetWeeks = weeks.filter(w => isValidUuid(w.id) && ownedWeekIds.has(w.id));
 
+  // Every week in the payload must resolve to an owned week — silently
+  // dropping unresolved ones would return {ok:true} while part of the tree
+  // (e.g. a week with a stale/invalid id from a race or bad client state)
+  // was never saved, with no signal to the caller.
+  if (targetWeeks.length !== weeks.length) {
+    return NextResponse.json({ error: 'One or more weeks were not found on this programme; no changes were saved' }, { status: 400 });
+  }
+
   // Validate every session in every targeted week BEFORE deleting anything —
   // otherwise one invalid session anywhere in the payload silently wipes
   // that week's already-saved sessions with no replacement (data loss).
@@ -67,6 +84,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       const validSession =
         typeof s.title === 'string' && s.title.trim() &&
         validCategories.includes(s.category) &&
+        typeof s.day_of_week === 'number' && Number.isInteger(s.day_of_week) &&
         s.day_of_week >= 1 && s.day_of_week <= 7;
       if (!validSession) {
         return NextResponse.json({ error: 'One or more sessions failed validation; no changes were saved' }, { status: 400 });

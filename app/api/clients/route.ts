@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getOrCreateCustomer, createSubscription, createPaymentIntent } from '@/lib/stripe';
-import { isValidEmail, readJsonBody } from '@/lib/utils';
+import { isValidEmail, isValidDateString, readJsonBody, stripHtmlTags } from '@/lib/utils';
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -30,13 +30,32 @@ export async function POST(req: NextRequest) {
   if (!email) return NextResponse.json({ error: 'Email is required' }, { status: 400 });
   if (!isValidEmail(email)) return NextResponse.json({ error: 'Please enter a valid email address.' }, { status: 400 });
 
-  if (typeof full_name === 'string' && full_name.trim().length > 255) {
-    return NextResponse.json({ error: 'Client name must be 255 characters or fewer' }, { status: 400 });
+  // full_name is optional, but if present must be a string — a non-string
+  // (number/object/array) used to skip validation entirely and reach the
+  // DB unvalidated, and unlike other name/title fields it wasn't run
+  // through stripHtmlTags before storage.
+  let cleanFullName: string | null = null;
+  if (full_name !== undefined && full_name !== null && full_name !== '') {
+    if (typeof full_name !== 'string') {
+      return NextResponse.json({ error: 'full_name must be a string' }, { status: 400 });
+    }
+    cleanFullName = stripHtmlTags(full_name.trim());
+    if (cleanFullName.length > 255) {
+      return NextResponse.json({ error: 'Client name must be 255 characters or fewer' }, { status: 400 });
+    }
+    cleanFullName = cleanFullName || null;
   }
 
   const validModels = ['subscription', 'fixed_block', 'hybrid'];
   if (agreement_model && !validModels.includes(agreement_model)) {
     return NextResponse.json({ error: 'Invalid agreement_model' }, { status: 400 });
+  }
+
+  if (start_date != null && !isValidDateString(start_date)) {
+    return NextResponse.json({ error: 'start_date must be a valid date (YYYY-MM-DD)' }, { status: 400 });
+  }
+  if (renewal_date != null && renewal_date !== '' && !isValidDateString(renewal_date)) {
+    return NextResponse.json({ error: 'renewal_date must be a valid date (YYYY-MM-DD)' }, { status: 400 });
   }
 
   const parsedWeeks = program_length_weeks != null ? parseInt(program_length_weeks) : null;
@@ -71,7 +90,7 @@ export async function POST(req: NextRequest) {
 
   // Invite the user — creates auth row + sends invite email
   const { data: invite, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(email, {
-    data:       { full_name },
+    data:       { full_name: cleanFullName },
     redirectTo: `${appUrl}/auth/callback`,
   });
 
@@ -90,7 +109,7 @@ export async function POST(req: NextRequest) {
 
   // Upsert profile (trigger may have already created it with just email)
   await admin.from('profiles').upsert(
-    { id: clientId, email, full_name: full_name || null, role: 'client' },
+    { id: clientId, email, full_name: cleanFullName, role: 'client' },
     { onConflict: 'id' },
   );
 
@@ -119,7 +138,7 @@ export async function POST(req: NextRequest) {
 
   if (manual_price_numeric && process.env.STRIPE_SECRET_KEY) {
     try {
-      const stripeCustomerId = await getOrCreateCustomer(email, full_name ?? null, agreement.id);
+      const stripeCustomerId = await getOrCreateCustomer(email, cleanFullName, agreement.id);
 
       // Store the customer ID immediately
       await admin
