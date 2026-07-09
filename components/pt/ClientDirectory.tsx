@@ -8,7 +8,7 @@ import { ClientRow, AgreementStatus, AgreementModel, SessionCategory } from '@/t
 import {
   STATUS_CONFIG, CATEGORY_CONFIG,
   daysUntilRenewal, isOnboardingComplete, getInitials, formatCurrency,
-  isDeletionOverdue, deletionDaysRemaining,
+  isDeletionOverdue, deletionDaysRemaining, daysSince,
 } from '@/lib/utils';
 
 // ─── Types ────────────────────────────────────────────────
@@ -85,6 +85,20 @@ function RenewalCell({ renewalDate }: { renewalDate: string | null }) {
   if (days < 0)  return <span className="text-red-400 text-sm font-mono">Expired</span>;
   if (days <= 7) return <span className="text-amber-400 text-sm font-mono animate-pulse">{days}d</span>;
   return <span className="text-slate-400 text-sm font-mono">{days}d</span>;
+}
+
+function InactivityBadge({ lastCompletedAt, status }: { lastCompletedAt: string | null; status: AgreementStatus }) {
+  if (status !== 'active' && status !== 'attention') return null;
+  const days = daysSince(lastCompletedAt);
+  if (days === null || days < 14) return null;
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-2xs font-mono bg-red-500/10 text-red-400 border border-red-500/20"
+      title="No completed sessions logged recently"
+    >
+      ⚠ {days}d quiet
+    </span>
+  );
 }
 
 function NextSessionBadge({ date }: { date: string | null }) {
@@ -301,6 +315,7 @@ export default function ClientDirectory({ clients, onSelectClient, onAddClient }
                     </span>
                     <OnboardingIndicator complete={complete} score={score} />
                     <DeletionBadge scheduledAt={agreement.deletion_scheduled_at} />
+                    <InactivityBadge lastCompletedAt={client.last_completed_session_at} status={agreement.status} />
                     {client.next_session_date && (
                       <span className="text-2xs font-mono text-slate-600">
                         Next: <NextSessionBadge date={client.next_session_date} />
@@ -357,6 +372,7 @@ export default function ClientDirectory({ clients, onSelectClient, onAddClient }
                           {client.full_name ?? 'Unnamed'}
                         </p>
                         <DeletionBadge scheduledAt={agreement.deletion_scheduled_at} />
+                        <InactivityBadge lastCompletedAt={client.last_completed_session_at} status={agreement.status} />
                       </div>
                       <p className="text-2xs font-mono text-slate-600 truncate">{client.email}</p>
                     </div>

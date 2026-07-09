@@ -19,7 +19,7 @@ export async function GET() {
   const { data: templates, error } = await supabase
     .from('session_templates')
     .select(`
-      id, pt_id, pt_name, title, category, notes, is_public, created_at, updated_at,
+      id, pt_id, pt_name, title, category, notes, is_public, is_pinned, created_at, updated_at,
       pt:profiles!session_templates_pt_id_fkey(logo_url),
       template_items:session_template_items(
         id, exercise_id, sort_order, prescribed_metrics,
@@ -27,6 +27,7 @@ export async function GET() {
         exercise:exercises(*)
       )
     `)
+    .order('is_pinned', { ascending: false })
     .order('created_at', { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

@@ -74,6 +74,20 @@ export default async function ClientsPage() {
     return acc;
   }, {});
 
+  // Fetch most recent completed session timestamp per client (inactivity signal)
+  const { data: completedSessions } = await supabase
+    .from('sessions')
+    .select('client_id, completed_at')
+    .eq('pt_id', user.id)
+    .in('client_id', clientIds)
+    .not('completed_at', 'is', null)
+    .order('completed_at', { ascending: false });
+
+  const lastCompletedMap = (completedSessions ?? []).reduce<Record<string, string>>((acc, s) => {
+    if (!acc[s.client_id] && s.completed_at) acc[s.client_id] = s.completed_at;
+    return acc;
+  }, {});
+
   // If any profiles came back null (RLS policy quirk in Supabase), fetch them via admin
   const nullClientIds = (agreements ?? [])
     .filter(a => a.client == null)
@@ -106,10 +120,11 @@ export default async function ClientsPage() {
         created_at:  p.created_at  ?? new Date().toISOString(),
         updated_at:  p.updated_at  ?? new Date().toISOString(),
         agreement,
-        sessions_this_week:  sessionCountMap[agreement.client_id] ?? 0,
-        days_until_renewal:  daysUntilRenewal(agreement.renewal_date),
-        onboarding_complete: isOnboardingComplete(agreement),
-        next_session_date:   nextSessionMap[agreement.client_id] ?? null,
+        sessions_this_week:        sessionCountMap[agreement.client_id] ?? 0,
+        days_until_renewal:        daysUntilRenewal(agreement.renewal_date),
+        onboarding_complete:       isOnboardingComplete(agreement),
+        next_session_date:         nextSessionMap[agreement.client_id] ?? null,
+        last_completed_session_at: lastCompletedMap[agreement.client_id] ?? null,
       } as ClientRow;
     });
 

@@ -19,26 +19,31 @@ export function ClientGoalCard({
     : null;
 
   const pct = goalProgress ?? null;
+  const achieved = pct === 100;
 
   return (
-    <div className="rounded-xl bg-surface-2 border border-indigo-500/20 px-4 py-3">
+    <div className={`rounded-xl bg-surface-2 border px-4 py-3 ${achieved ? 'border-emerald-500/30' : 'border-indigo-500/20'}`}>
       <div className="flex items-center gap-3">
-        <span className="text-2xl">🎯</span>
+        <span className="text-2xl">{achieved ? '🎉' : '🎯'}</span>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-slate-200">{goalText}</p>
-          {targetLabel && (
+          {achieved ? (
+            <p className="text-2xs font-mono text-emerald-400 mt-0.5">Goal achieved!</p>
+          ) : targetLabel && (
             <p className="text-2xs font-mono text-slate-500 mt-0.5">Target: {targetLabel}</p>
           )}
         </div>
         {pct !== null && (
-          <span className="text-sm font-mono font-semibold text-indigo-400 flex-shrink-0">{pct}%</span>
+          <span className={`text-sm font-mono font-semibold flex-shrink-0 ${achieved ? 'text-emerald-400' : 'text-indigo-400'}`}>
+            {achieved ? '100%' : `${pct}%`}
+          </span>
         )}
       </div>
       {pct !== null && (
         <div className="mt-2.5">
           <div className="h-1.5 rounded-full bg-surface-border overflow-hidden">
             <div
-              className="h-full rounded-full bg-indigo-500 transition-all"
+              className={`h-full rounded-full transition-all ${achieved ? 'bg-emerald-500' : 'bg-indigo-500'}`}
               style={{ width: `${pct}%` }}
             />
           </div>

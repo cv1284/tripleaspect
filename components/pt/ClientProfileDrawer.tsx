@@ -724,8 +724,10 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <label className="label">Progress</label>
-                      <span className="text-sm font-mono text-indigo-400">
-                        {form.goal_progress !== '' ? `${form.goal_progress}%` : '—'}
+                      <span className={`text-sm font-mono ${form.goal_progress === '100' ? 'text-emerald-400' : 'text-indigo-400'}`}>
+                        {form.goal_progress === '100'
+                          ? '🎉 Achieved'
+                          : form.goal_progress !== '' ? `${form.goal_progress}%` : '—'}
                       </span>
                     </div>
                     <input
@@ -733,7 +735,7 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
                       min="0" max="100" step="5"
                       value={form.goal_progress !== '' ? form.goal_progress : '0'}
                       onChange={e => set('goal_progress', e.target.value)}
-                      className="w-full accent-indigo-500"
+                      className={`w-full ${form.goal_progress === '100' ? 'accent-emerald-500' : 'accent-indigo-500'}`}
                     />
                     <div className="flex justify-between text-2xs font-mono text-slate-700 mt-0.5">
                       <span>0%</span><span>50%</span><span>100%</span>

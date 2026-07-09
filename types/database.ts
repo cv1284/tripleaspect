@@ -161,11 +161,12 @@ export interface ClientAgreement {
 // ─── Derived / Composite ──────────────────────────────────
 
 export interface ClientRow extends Profile {
-  agreement:           ClientAgreement;
-  sessions_this_week:  number;
-  days_until_renewal:  number | null;
-  onboarding_complete: boolean;
-  next_session_date:   string | null;
+  agreement:                 ClientAgreement;
+  sessions_this_week:        number;
+  days_until_renewal:        number | null;
+  onboarding_complete:       boolean;
+  next_session_date:         string | null;
+  last_completed_session_at: string | null;
 }
 
 // Onboarding doc type union
@@ -218,6 +219,7 @@ export interface SessionTemplate {
   category:   SessionCategory;
   notes:      string | null;
   is_public:  boolean;
+  is_pinned:  boolean;
   created_at: string;
   updated_at: string;
   // Joined

@@ -79,10 +79,11 @@ export default function AddClientModal({ onClose, onAdded }: Props) {
       created_at:  new Date().toISOString(),
       updated_at:  new Date().toISOString(),
       agreement,
-      sessions_this_week:  0,
-      days_until_renewal:  daysUntilRenewal(agreement.renewal_date),
-      onboarding_complete: isOnboardingComplete(agreement),
-      next_session_date:   null,
+      sessions_this_week:        0,
+      days_until_renewal:        daysUntilRenewal(agreement.renewal_date),
+      onboarding_complete:       isOnboardingComplete(agreement),
+      next_session_date:         null,
+      last_completed_session_at: null,
     };
 
     onAdded(newClient);

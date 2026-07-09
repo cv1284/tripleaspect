@@ -4,6 +4,19 @@ All notable changes to brigid.pro are documented here.
 
 ## [Unreleased]
 
+### Nightly Audit (2026-07-09 — 0 Bugs, 3 Features Shipped)
+
+**Phase 1a was blocked** (no browser access — another session's dev server held the project's preview slot) and Phase 1b results were not present in tonight's status file, so no new bugs were found or logged. Per the 0-bugs bandwidth rule, shipped 3 backlog-style features instead. No DB cleanup was needed (Phase 1a created no test data; no Phase 1b cleanup-candidate list existed).
+
+**Feature: Goal achieved celebration**. When a client's `goal_progress` reaches 100%, `ClientGoalCard` (client portal home) switches to a celebratory state — 🎉 emoji, emerald accent, "Goal achieved!" replacing the target-date line. The PT's goal-progress slider in `ClientProfileDrawer` mirrors this with an emerald "🎉 Achieved" label instead of "100%". No new migration — reuses the existing `goal_progress` column.
+- **Files**: `components/client/PortalStats.tsx`, `components/pt/ClientProfileDrawer.tsx`
+
+**Feature: Template pinning**. PTs can star (★) their own templates in the "Load from Template" picker to pin them to the top of the "My Templates" list, ahead of unpinned templates (still ordered by recency within each group). New `session_templates.is_pinned` boolean column (migration `017_template_pinning.sql`); `PATCH /api/templates/[id]` extended to accept `is_pinned` with a boolean type guard, matching the existing `title`/`notes`/`is_public` validation pattern. Pinning only applies to a PT's own templates (RLS already scopes "My Templates" to owned rows).
+- **Files**: `supabase/migrations/017_template_pinning.sql`, `app/api/templates/route.ts`, `app/api/templates/[id]/route.ts`, `components/pt/SessionBuilder.tsx`, `types/database.ts`
+
+**Feature: Client inactivity indicator**. The Client Directory now flags clients with no completed session in 14+ days (active/attention clients only) with a "⚠ Nd quiet" badge, giving PTs an at-a-glance signal for clients going quiet before it becomes a renewal or churn problem. Computed from the existing `sessions.completed_at` column in `app/pt/clients/page.tsx` — no new migration or API route. New `daysSince()` helper added to `lib/utils.ts` alongside the existing `daysUntilRenewal`/`deletionDaysRemaining` date helpers.
+- **Files**: `lib/utils.ts`, `app/pt/clients/page.tsx`, `components/pt/ClientDirectory.tsx`, `components/pt/AddClientModal.tsx`, `types/database.ts`
+
 ### Nightly Audit (2026-07-08 — 3 Bugs Fixed, 1 Feature Shipped)
 
 **BUG-71/72/73 (RESOLVED)**: `POST /api/programmes/[id]/save-tree` had three related data-integrity gaps in the same validation pass.

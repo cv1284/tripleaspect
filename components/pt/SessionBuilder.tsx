@@ -548,11 +548,26 @@ function TemplatePicker({
       .then(data => { setTemplates(Array.isArray(data) ? data : []); setLoading(false); });
   }, []);
 
+  async function handleTogglePin(tpl: SessionTemplate) {
+    const nextPinned = !tpl.is_pinned;
+    setTemplates(prev => prev.map(t => t.id === tpl.id ? { ...t, is_pinned: nextPinned } : t));
+    try {
+      await fetch(`/api/templates/${tpl.id}`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ is_pinned: nextPinned }),
+      });
+    } catch {
+      setTemplates(prev => prev.map(t => t.id === tpl.id ? { ...t, is_pinned: tpl.is_pinned } : t));
+    }
+  }
+
   const filtered = templates.filter(t =>
     !search || t.title.toLowerCase().includes(search.toLowerCase()),
   );
 
-  const privateTemplates = filtered.filter(t => !t.is_public);
+  const privateTemplates = [...filtered.filter(t => !t.is_public)]
+    .sort((a, b) => Number(b.is_pinned) - Number(a.is_pinned));
   const publicTemplates  = filtered.filter(t => t.is_public);
 
   return (
@@ -593,7 +608,9 @@ function TemplatePicker({
               <p className="px-4 py-2 text-2xs font-mono text-slate-600 uppercase tracking-widest border-b border-surface-border">
                 My Templates
               </p>
-              {privateTemplates.map(t => <TemplateRow key={t.id} template={t} onLoad={onLoad} onClose={onClose} />)}
+              {privateTemplates.map(t => (
+                <TemplateRow key={t.id} template={t} onLoad={onLoad} onClose={onClose} onTogglePin={handleTogglePin} />
+              ))}
             </>
           )}
 
@@ -611,40 +628,57 @@ function TemplatePicker({
   );
 }
 
-function TemplateRow({ template, onLoad, onClose }: { template: SessionTemplate; onLoad: (t: SessionTemplate) => void; onClose: () => void }) {
+function TemplateRow({ template, onLoad, onClose, onTogglePin }: {
+  template:    SessionTemplate;
+  onLoad:      (t: SessionTemplate) => void;
+  onClose:     () => void;
+  onTogglePin?: (t: SessionTemplate) => void;
+}) {
   const cfg   = CATEGORY_CONFIG[template.category as SessionCategory];
   const count = template.template_items?.length ?? 0;
   return (
-    <button
-      type="button"
-      onClick={() => { onLoad(template); onClose(); }}
-      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-surface-4 transition-colors text-left border-b border-surface-border/50"
-    >
-      <span className={`text-base flex-shrink-0 ${cfg.color}`}>{cfg.icon}</span>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-slate-200">{template.title}</p>
-        <div className="flex items-center gap-2 flex-wrap">
-          <p className="text-2xs font-mono text-slate-600">
-            {count} exercise{count !== 1 ? 's' : ''}
-          </p>
-          {template.is_public && template.pt_name && (
-            <span className="flex items-center gap-1">
-              <span className="w-4 h-4 rounded-full overflow-hidden bg-surface-4 border border-surface-border flex-shrink-0 flex items-center justify-center">
-                {template.pt?.logo_url ? (
-                  <Image src={template.pt.logo_url!} alt={template.pt_name} width={16} height={16} className="object-cover w-full h-full" unoptimized />
-                ) : (
-                  <span className="text-2xs font-mono text-slate-500">{template.pt_name[0]}</span>
-                )}
+    <div className="w-full flex items-center gap-1 border-b border-surface-border/50 hover:bg-surface-4 transition-colors">
+      {onTogglePin && (
+        <button
+          type="button"
+          onClick={e => { e.stopPropagation(); onTogglePin(template); }}
+          className={`flex-shrink-0 pl-4 pr-1 py-3 text-base transition-colors ${template.is_pinned ? 'text-amber-400' : 'text-slate-700 hover:text-slate-500'}`}
+          title={template.is_pinned ? 'Unpin template' : 'Pin template'}
+        >
+          {template.is_pinned ? '★' : '☆'}
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={() => { onLoad(template); onClose(); }}
+        className={`flex-1 min-w-0 flex items-center gap-3 py-3 pr-4 text-left ${onTogglePin ? '' : 'pl-4'}`}
+      >
+        <span className={`text-base flex-shrink-0 ${cfg.color}`}>{cfg.icon}</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-slate-200">{template.title}</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-2xs font-mono text-slate-600">
+              {count} exercise{count !== 1 ? 's' : ''}
+            </p>
+            {template.is_public && template.pt_name && (
+              <span className="flex items-center gap-1">
+                <span className="w-4 h-4 rounded-full overflow-hidden bg-surface-4 border border-surface-border flex-shrink-0 flex items-center justify-center">
+                  {template.pt?.logo_url ? (
+                    <Image src={template.pt.logo_url!} alt={template.pt_name} width={16} height={16} className="object-cover w-full h-full" unoptimized />
+                  ) : (
+                    <span className="text-2xs font-mono text-slate-500">{template.pt_name[0]}</span>
+                  )}
+                </span>
+                <span className="text-2xs font-mono text-indigo-400/70">{template.pt_name}</span>
               </span>
-              <span className="text-2xs font-mono text-indigo-400/70">{template.pt_name}</span>
-            </span>
-          )}
+            )}
+          </div>
         </div>
-      </div>
-      <span className={`text-2xs font-mono px-2 py-0.5 rounded ${cfg.bg} ${cfg.color}`}>
-        {cfg.label}
-      </span>
-    </button>
+        <span className={`text-2xs font-mono px-2 py-0.5 rounded ${cfg.bg} ${cfg.color}`}>
+          {cfg.label}
+        </span>
+      </button>
+    </div>
   );
 }
 

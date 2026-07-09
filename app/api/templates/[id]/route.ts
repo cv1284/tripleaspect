@@ -5,7 +5,7 @@ import { readJsonBody, isValidUuid, stripHtmlTags } from '@/lib/utils';
 interface Params { params: Promise<{ id: string }> }
 
 // PATCH /api/templates/[id]
-// Toggle is_public or rename a template. Only the owning PT can update.
+// Toggle is_public/is_pinned or rename a template. Only the owning PT can update.
 export async function PATCH(req: NextRequest, { params }: Params) {
   const { id } = await params;
   const supabase = await createClient();
@@ -16,7 +16,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   const body = await readJsonBody(req);
   if (body === null) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
-  const allowed = ['title', 'is_public', 'notes'] as const;
+  const allowed = ['title', 'is_public', 'is_pinned', 'notes'] as const;
   const patch = Object.fromEntries(
     Object.entries(body).filter(([k]) => (allowed as readonly string[]).includes(k)),
   );
@@ -34,6 +34,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
   if ('notes' in patch && typeof patch.notes === 'string') {
     patch.notes = stripHtmlTags(patch.notes.trim()) || null;
+  }
+  if ('is_pinned' in patch && typeof patch.is_pinned !== 'boolean') {
+    return NextResponse.json({ error: 'is_pinned must be a boolean' }, { status: 400 });
   }
 
   const { data, error } = await supabase

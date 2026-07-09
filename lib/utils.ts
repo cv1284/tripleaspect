@@ -68,6 +68,11 @@ export function isExpiringSoon(renewalDate: string | null, thresholdDays = 7): b
   return days !== null && days >= 0 && days <= thresholdDays;
 }
 
+export function daysSince(dateStr: string | null): number | null {
+  if (!dateStr) return null;
+  return differenceInDays(new Date(), parseISO(dateStr));
+}
+
 export function isThisWeek(dateStr: string | null): boolean {
   if (!dateStr) return false;
   const date  = parseISO(dateStr);
