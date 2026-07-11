@@ -104,7 +104,9 @@ export async function PATCH(
       ? rawTags.split(',').map((t: string) => t.trim()).filter(Boolean)
       : (Array.isArray(rawTags) ? rawTags : []);
     if (parsedTags.length > 20) return NextResponse.json({ error: 'Maximum 20 tags allowed' }, { status: 400 });
-    if (parsedTags.some((t: string) => t.length > 50)) return NextResponse.json({ error: 'Each tag must be 50 characters or fewer' }, { status: 400 });
+    if (parsedTags.some((t: unknown) => typeof t !== 'string' || t.length > 50)) {
+      return NextResponse.json({ error: 'Each tag must be a string of 50 characters or fewer' }, { status: 400 });
+    }
     patch.tags = parsedTags.length > 0 ? parsedTags : null;
   }
 

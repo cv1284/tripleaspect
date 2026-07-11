@@ -4,6 +4,33 @@ All notable changes to brigid.pro are documented here.
 
 ## [Unreleased]
 
+### Nightly Audit (2026-07-11 — 5 Bugs Fixed, 1 Feature Shipped)
+
+**BUG-87 (RESOLVED, critical)**: `session_templates.is_pinned` (migration `017_template_pinning.sql`, shipped 2026-07-09) was never applied to the live DB — the migration's own header says "APPLY VIA: Supabase dashboard > SQL Editor" and no one had run it. `GET /api/templates` 500'd unconditionally for every PT for two days, completely breaking the "My Templates" picker in Session Builder.
+- **Fix**: applied the migration live via `supabase db query --linked --file`; confirmed via `information_schema.columns` and a live authenticated `GET /api/templates` returning 200.
+- **Files**: `supabase/migrations/017_template_pinning.sql` (applied, no code change)
+
+**BUG-84 (RESOLVED)**: `PATCH /api/exercises/[id]` validated `tags` array elements more loosely than `POST /api/exercises` — the PATCH path was missing the `typeof t !== 'string'` check present on POST, so `tags:[123,{"a":1},"valid"]` was accepted and persisted with non-string elements coerced to strings by Postgres.
+- **Fix**: PATCH now applies the identical per-element `typeof` + length check as POST.
+- **Files**: `app/api/exercises/[id]/route.ts`
+
+**BUG-85 / BUG-80 (RESOLVED, same root cause)**: `POST /api/templates` spread raw request-body item objects (`{...item, template_id}`) directly into the `session_template_items` insert with no per-field validation or key allowlist. `sort_order:"zero"` or an unrecognized key (`extra_field_xyz`) both reached Postgres unvalidated and raw-500'd instead of returning a clean error.
+- **Fix**: each item is now validated (`exercise_id` valid uuid, `sort_order` integer, `prescribed_metrics` object, `custom_coaching_cues`/`custom_youtube_url` string|null) before insert, and the insert is built from an explicit field whitelist — unknown keys are silently dropped rather than reaching the DB, matching the allowed-fields pattern already used in `PATCH /api/programmes/[id]`.
+- **Files**: `app/api/templates/route.ts`
+
+**BUG-86 (RESOLVED)**: `POST /api/portal/checkin` accepted a well-formed but nonexistent `session_id` (passes `isValidUuid`), which then failed the insert's foreign-key constraint and leaked the raw Postgres FK error text as a 500.
+- **Fix**: catch FK violation (`code === '23503'`) on the insert and return a clean 400, matching the existing pattern already used in `POST /api/templates`'s item-insert error handling.
+- **Files**: `app/api/portal/checkin/route.ts`
+
+**BUG-88 (RESOLVED)**: `PATCH /api/programmes/[id]` copied `is_public` straight into the update patch with no `typeof boolean` check (unlike `title`/`category`, which are validated) — non-boolean values either 500'd with a raw Postgres error or silently coerced (`"yes"` → `true`).
+- **Fix**: reject non-boolean `is_public` with a clean 400, mirroring the existing `category` validation in the same route.
+- **Files**: `app/api/programmes/[id]/route.ts`
+
+**DB sanitation**: deleted two stray rows carried forward unexplained since 2026-07-05/07-07 (`wellbeing_checkins` id `8d125f40…`, `progress_photos` id `5086483b…` + its storage object) after confirming both belonged to the standard shared test-client fixture account, not a real user.
+
+**Feature: Programme public/private toggle**. `is_public` has been a real column and a working `PATCH` field on programmes since MVP, and templates already had a full "⊞ Share / ⊡ Private" toggle (`TemplatesClient.tsx`), but the Programme Builder had no UI control for it at all — the only way to flip it was a direct API call. Added the same toggle button to `ProgrammeBuilder.tsx`'s header, next to Duplicate/Print/Assign; it flips local state and persists on the existing "Save" button alongside title/description/category, reusing the already-wired `PATCH /api/programmes/[id]` endpoint (and the `is_public` type-check added for BUG-88 above). No new migration, no new dependencies. Verified live: toggle → Save → `GET /api/programmes/[id]` confirms `is_public: true` persisted.
+- **Files**: `components/pt/ProgrammeBuilder.tsx`
+
 ### Nightly Audit (2026-07-09 — 0 Bugs, 3 Features Shipped)
 
 **Phase 1a was blocked** (no browser access — another session's dev server held the project's preview slot) and Phase 1b results were not present in tonight's status file, so no new bugs were found or logged. Per the 0-bugs bandwidth rule, shipped 3 backlog-style features instead. No DB cleanup was needed (Phase 1a created no test data; no Phase 1b cleanup-candidate list existed).

@@ -90,6 +90,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Invalid category. Must be one of: healing, forging, verse' }, { status: 400 });
   }
 
+  if ('is_public' in patch && typeof patch.is_public !== 'boolean') {
+    return NextResponse.json({ error: 'is_public must be a boolean' }, { status: 400 });
+  }
+
   const { data, error } = await supabase
     .from('programmes')
     .update(patch)

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { readJsonBody, stripHtmlTags } from '@/lib/utils';
+import { readJsonBody, isValidUuid, stripHtmlTags } from '@/lib/utils';
 
 // GET /api/templates
 // Returns the PT's own templates + all public templates from other PTs.
@@ -78,6 +78,16 @@ export async function POST(req: NextRequest) {
   if (!Array.isArray(items) || items.length === 0) {
     return NextResponse.json({ error: 'At least one exercise required' }, { status: 400 });
   }
+  const validItems = items.every(item =>
+    typeof item.exercise_id === 'string' && isValidUuid(item.exercise_id) &&
+    typeof item.sort_order === 'number' && Number.isInteger(item.sort_order) &&
+    (item.prescribed_metrics === null || typeof item.prescribed_metrics === 'object') &&
+    (item.custom_coaching_cues === undefined || item.custom_coaching_cues === null || typeof item.custom_coaching_cues === 'string') &&
+    (item.custom_youtube_url === undefined || item.custom_youtube_url === null || typeof item.custom_youtube_url === 'string'),
+  );
+  if (!validItems) {
+    return NextResponse.json({ error: 'One or more items failed validation' }, { status: 400 });
+  }
 
   const { data: template, error: tmplErr } = await supabase
     .from('session_templates')
@@ -98,7 +108,14 @@ export async function POST(req: NextRequest) {
 
   const { error: itemErr } = await supabase
     .from('session_template_items')
-    .insert(items.map(item => ({ ...item, template_id: template.id })));
+    .insert(items.map(item => ({
+      template_id:          template.id,
+      exercise_id:          item.exercise_id,
+      sort_order:           item.sort_order,
+      prescribed_metrics:   item.prescribed_metrics ?? {},
+      custom_coaching_cues: typeof item.custom_coaching_cues === 'string' ? stripHtmlTags(item.custom_coaching_cues) || null : null,
+      custom_youtube_url:   typeof item.custom_youtube_url === 'string' ? item.custom_youtube_url.trim() || null : null,
+    })));
 
   if (itemErr) {
     // Roll back the orphan header so we never leave a template with no items

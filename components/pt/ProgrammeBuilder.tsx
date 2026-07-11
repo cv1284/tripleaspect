@@ -386,6 +386,18 @@ export default function ProgrammeBuilder({ programme: initial, clients }: Props)
             </span>
           )}
           <button
+            onClick={() => setProgramme(p => ({ ...p, is_public: !p.is_public }))}
+            disabled={saving}
+            title={programme.is_public ? 'Make private' : 'Share publicly'}
+            className={`py-1.5 px-2.5 rounded-lg text-sm font-mono border transition-colors ${
+              programme.is_public
+                ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400 hover:bg-indigo-500/20'
+                : 'border-surface-border text-slate-500 hover:text-indigo-400 hover:border-indigo-500/30'
+            }`}
+          >
+            {programme.is_public ? '⊡ Private' : '⊞ Share'}
+          </button>
+          <button
             onClick={handleDuplicate}
             disabled={duplicating || saving}
             className="btn-ghost text-sm text-slate-400 hover:text-slate-200"

@@ -57,7 +57,13 @@ export async function POST(req: NextRequest) {
     .select('id, sleep, stress, soreness, notes, session_id, created_at')
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    // FK violation means the caller passed a non-existent session_id → 400, not 500
+    if (error.code === '23503') {
+      return NextResponse.json({ error: 'session_id does not exist' }, { status: 400 });
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
   return NextResponse.json(data, { status: 201 });
 }
 
