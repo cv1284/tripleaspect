@@ -38,6 +38,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if ('is_pinned' in patch && typeof patch.is_pinned !== 'boolean') {
     return NextResponse.json({ error: 'is_pinned must be a boolean' }, { status: 400 });
   }
+  if ('is_public' in patch && typeof patch.is_public !== 'boolean') {
+    return NextResponse.json({ error: 'is_public must be a boolean' }, { status: 400 });
+  }
 
   const { data, error } = await supabase
     .from('session_templates')

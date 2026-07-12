@@ -27,6 +27,14 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'No valid fields' }, { status: 400 });
   }
 
+  // Normalise empty strings to null before the protocol check — the account page's
+  // "Save document links" button submits all three URL fields together, so leaving
+  // one blank sends "", which isn't null and previously hit the `chk_*_url_protocol`
+  // DB constraint as a raw 500.
+  for (const key of Object.keys(patch)) {
+    if (patch[key] === '') patch[key] = null;
+  }
+
   // Reject non-http(s) URLs — prevents javascript: URIs being stored and rendered as links
   for (const [key, val] of Object.entries(patch)) {
     if (typeof val === 'string' && val) {

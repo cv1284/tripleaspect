@@ -16,6 +16,9 @@ export async function POST(req: NextRequest) {
     url?: unknown; page_title?: unknown; notes?: unknown; report_type?: unknown; screenshot_url?: unknown;
   };
   if (!url) return NextResponse.json({ error: 'url is required' }, { status: 400 });
+  if (page_title !== undefined && typeof page_title !== 'string') {
+    return NextResponse.json({ error: 'page_title must be a string' }, { status: 400 });
+  }
 
   // Reject non-http(s) URLs — prevents javascript: or data: URIs reaching the DB and email templates
   if (typeof url === 'string' && url) {
@@ -50,7 +53,9 @@ export async function POST(req: NextRequest) {
     .insert({
       user_id:        user.id,
       url,
-      page_title:     page_title || url,
+      page_title:     typeof page_title === 'string' && page_title.trim()
+        ? stripHtmlTags(page_title.trim()).slice(0, 200)
+        : url,
       notes:          typeof notes === 'string' ? stripHtmlTags(notes.trim()).slice(0, 2000) || null : null,
       report_type:    report_type === 'feature' ? 'feature' : 'bug',
       screenshot_url: (() => {

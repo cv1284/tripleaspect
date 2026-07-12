@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { readJsonBody, isValidUuid } from '@/lib/utils';
+import { readJsonBody, isValidUuid, isValidDateString } from '@/lib/utils';
 
 interface Params { params: Promise<{ id: string }> }
 
@@ -23,10 +23,10 @@ export async function POST(req: NextRequest, { params }: Params) {
   }
   if (!isValidUuid(clientId)) return NextResponse.json({ error: 'Invalid clientId' }, { status: 400 });
 
-  const parsedMonday = new Date(startDate);
-  if (isNaN(parsedMonday.getTime())) {
+  if (!isValidDateString(startDate)) {
     return NextResponse.json({ error: 'startDate must be a valid ISO date (YYYY-MM-DD)' }, { status: 400 });
   }
+  const parsedMonday = new Date(startDate);
 
   // Verify PT owns the programme
   const { data: programme, error: progErr } = await supabase
