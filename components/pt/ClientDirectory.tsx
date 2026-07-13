@@ -197,16 +197,26 @@ function FilterBar({
 
 // ─── Main Component ───────────────────────────────────────
 
+function isQuiet(client: ClientRow): boolean {
+  const status = client.agreement.status;
+  if (status !== 'active' && status !== 'attention') return false;
+  const days = daysSince(client.last_completed_session_at);
+  return days !== null && days >= 14;
+}
+
 export default function ClientDirectory({ clients, onSelectClient, onAddClient }: Props) {
   const [search,       setSearch]       = useState('');
   const [statusFilter, setStatusFilter] = useState<AgreementStatus | 'all'>('all');
   const [sortKey,      setSortKey]      = useState<SortKey>('name');
   const [sortDir,      setSortDir]      = useState<SortDir>('asc');
+  const [quietOnly,    setQuietOnly]    = useState(false);
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else { setSortKey(key); setSortDir('asc'); }
   }
+
+  const quietClients = useMemo(() => clients.filter(isQuiet), [clients]);
 
   const filtered = useMemo(() => {
     let rows = [...clients];
@@ -223,6 +233,10 @@ export default function ClientDirectory({ clients, onSelectClient, onAddClient }
       rows = rows.filter(c => c.agreement.status === statusFilter);
     }
 
+    if (quietOnly) {
+      rows = rows.filter(isQuiet);
+    }
+
     rows.sort((a, b) => {
       let cmp = 0;
       switch (sortKey) {
@@ -236,7 +250,7 @@ export default function ClientDirectory({ clients, onSelectClient, onAddClient }
     });
 
     return rows;
-  }, [clients, search, statusFilter, sortKey, sortDir]);
+  }, [clients, search, statusFilter, quietOnly, sortKey, sortDir]);
 
   function SortButton({ k, label }: { k: SortKey; label: string }) {
     const active = sortKey === k;
@@ -277,6 +291,28 @@ export default function ClientDirectory({ clients, onSelectClient, onAddClient }
             </p>
           </div>
         </div>
+      )}
+
+      {/* Needs attention: quiet clients */}
+      {quietClients.length > 0 && (
+        <button
+          onClick={() => setQuietOnly(q => !q)}
+          className={`flex items-start gap-3 px-4 py-3 rounded-lg border text-sm font-mono text-left transition-colors ${
+            quietOnly
+              ? 'bg-amber-500/15 border-amber-500/40'
+              : 'bg-amber-500/8 border-amber-500/25 hover:bg-amber-500/12'
+          }`}
+        >
+          <span className="text-amber-400 text-base flex-shrink-0 mt-0.5">⚠</span>
+          <div>
+            <p className="text-amber-300 font-semibold mb-0.5">
+              {quietClients.length} client{quietClients.length !== 1 ? 's' : ''} need{quietClients.length === 1 ? 's' : ''} attention
+            </p>
+            <p className="text-slate-500 text-xs">
+              {quietOnly ? 'Showing quiet clients only — click to clear.' : 'No completed sessions in 14+ days. Click to filter the list.'}
+            </p>
+          </div>
+        </button>
       )}
 
       {/* Filters */}

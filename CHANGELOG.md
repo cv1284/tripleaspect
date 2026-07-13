@@ -4,6 +4,44 @@ All notable changes to brigid.pro are documented here.
 
 ## [Unreleased]
 
+### Nightly Audit (2026-07-13 — 1 Bug Fixed, 2 Features Shipped)
+
+**BUG-96 (RESOLVED)**: `SessionBuilder.tsx`'s per-exercise `prescribed_metrics` (sets, reps, weight_kg, rest_seconds, tempo, rpe, notes, and the healing/verse equivalents) had zero validation before being written directly to Supabase — no numeric bounds (sets=99999, weight_kg=-50, rest_seconds=999999, rpe=15 all saved silently) and, worse, the text fields (`reps`, `notes`, `tempo`, `pace_per_km`) were never passed through `stripHtmlTags()` unlike every other text field in this same write path (title/notes/coaching_cues, fixed for BUG-61). `<script>alert(2)</script>AMRAP` persisted verbatim in `reps`. Same underlying architectural gap as the still-open BUG-67 (no API route for sessions/session_items at all), but scoped here to the specific sanitization/bounds gap flagged by tonight's audit rather than the larger "add a real API route" rewrite.
+- **Fix**: extracted `METRIC_FIELDS` + a new `buildMetricsPayload()` out of `SessionBuilder.tsx` into a new shared, unit-testable `lib/metrics.ts`. Each field now declares `min`/`max` (numbers, clamped) or `maxLength` (text, `stripHtmlTags()`-ed then truncated); `select` fields (`side`) are now validated against their allowed option list instead of accepted verbatim. Applies to both the session save path and the "Save as Template" path, since both call the same function. Bounds chosen from the app's own documented domain constraints (RPE 1–10, heart_rate_zone 1–5 already noted in `types/database.ts`).
+- **Tests**: `lib/metrics.ts` includes a self-test block (13 cases covering clamping, HTML-stripping, truncation, invalid selects, NaN) run via `npm run test:metrics`.
+- **Verified live**: reproduced the exact repro from the filed bug report (sets=99999, weight=-50, rest=999999, rpe=15, reps with `<script>` tag, notes with `<b>` tag) through the real Session Builder UI, saved, re-opened the edit view, confirmed all six values were clamped/stripped as expected.
+- **Files**: `lib/metrics.ts` (new), `components/pt/SessionBuilder.tsx`, `package.json` (`test:metrics` script)
+- **Not fixed tonight**: BUG-67 itself (a real `POST/PATCH /api/sessions` route replacing the direct-to-Supabase write) remains open — still bypassable via a direct REST call with the PT's own JWT, not just the browser JS. Deferred as a larger architectural change, same as prior nights.
+
+**Feature: Duplicate-exercise-name warning in Exercise Picker**. Prompted by a real anomaly logged during tonight's Phase 1a smoke test: the exercise picker's "Create new" flow had no duplicate check, so repeated nightly test runs (and likely real PT usage) accumulate near-identical custom exercises with no way to notice until searching turns up 6 copies of the same name. The create form now does a case-insensitive name match against the PT's already-loaded exercise library as they type; if a match is found, an inline warning appears with a "Use existing →" shortcut that adds the existing exercise to the session instead of creating a new one. No new migration, no new dependency, no API changes — purely client-side in the already-loaded `localExercises` list.
+- **Files**: `components/pt/SessionBuilder.tsx`
+
+**Feature: "Needs attention" quiet-client banner in Client Directory**. The per-row inactivity badge (⚠ Nd quiet, shipped 2026-07-09) required scrolling/scanning the full client list to notice; there was no directory-level summary. Added a dismissible-by-toggle banner above the filter bar — mirroring the existing "deletion overdue" alert pattern — showing a count of clients with no completed session in 14+ days (same `daysSince()` + active/attention-status logic as the existing badge, factored into a shared `isQuiet()` helper). Clicking the banner filters the list down to just those clients; clicking again clears the filter. No new migration, no new data fetch — reuses `last_completed_session_at`, already loaded per client.
+- **Files**: `components/pt/ClientDirectory.tsx`
+
+### Nightly Audit (2026-07-12 — 4 Bugs Fixed, 1 Feature Shipped)
+
+**BUG-90 (RESOLVED)**: `PATCH /api/client/docs` 500'd with a raw Postgres error when any doc URL field was submitted as an empty string. The account page's "Save document links" button always submits all three URL fields together, so leaving one blank sent `""`, which the route's null-only check let through to hit the `chk_*_url_protocol` DB constraint.
+- **Fix**: normalise empty-string URL fields to `null` before the protocol check.
+- **Files**: `app/api/client/docs/route.ts`
+
+**BUG-91 (RESOLVED)**: `PATCH /api/templates/[id]` validated `is_pinned` as a boolean but had no equivalent check for `is_public` — `"banana"` 500'd with a raw Postgres error, and PostgREST-coercible values like `"yes"`/`1` were silently accepted as `true` with no app-level validation.
+- **Fix**: added the same `typeof === 'boolean'` check already used for `is_pinned`.
+- **Files**: `app/api/templates/[id]/route.ts`
+
+**BUG-92 (RESOLVED, low severity)**: `POST /api/programmes/[id]/assign` validated `startDate` with `new Date()` + `isNaN(getTime())` only, accepting implausible years like `1900-01-01` or `9999-12-31`. `lib/utils.ts` already has `isValidDateString()` (with a documented year-bound guard) for exactly this reason, used by every other date-accepting route, but this one was never migrated to it.
+- **Fix**: swapped to `isValidDateString(startDate)`.
+- **Files**: `app/api/programmes/[id]/assign/route.ts`
+
+**BUG-95 (RESOLVED)**: `POST /api/bug-reports` had zero validation on `page_title` — no `typeof` check, no length cap, no sanitization — unlike every sibling field in the route (`notes` is type-checked, stripped, and capped). Accepted arrays/objects and multi-thousand-char strings, reaching an external Notion export unchecked.
+- **Fix**: added `typeof === 'string'` check, `stripHtmlTags`, and a 200-char cap, matching the `notes` field's treatment.
+- **Files**: `app/api/bug-reports/route.ts`
+
+**DB sanitation**: deleted two junk `bug_reports` rows (refs 93/94 — inert test payloads demonstrating the BUG-95 gap, no per-row DELETE endpoint so removed directly), two `<script>alert(1)</script>`-titled stale session rows left over from a prior night's XSS probing (confirmed zero `session_items` references first), and one orphaned `exercise-videos` storage object (100-byte test upload, unreferenced by any DB row).
+
+**Feature: Milestone tracking (multiple goals)**. PTs can now track multiple named milestones per client (text + optional target date + 0–100% progress), independent of the existing single primary goal (`goal_text`/`goal_progress`). New `client_agreements.milestones` JSONB column (migration `018_client_milestones.sql`, applied live via `supabase db query --linked --file`); `PATCH /api/agreements/[id]` extended with per-item validation (uuid `id`, non-empty HTML-stripped `text` ≤140 chars, optional valid `target_date`, integer `progress` 0–100, 20-item cap). PT UI in the Client Profile Drawer (add/edit/remove, inline slider); client portal shows a progress-bar list with 🎉 at 100%, added to both the rest-day and active-session views via a new `ClientMilestonesCard`.
+- **Files**: `supabase/migrations/018_client_milestones.sql`, `types/database.ts`, `app/api/agreements/[id]/route.ts`, `components/pt/ClientProfileDrawer.tsx`, `components/client/PortalStats.tsx`, `app/portal/[clientId]/page.tsx`, `components/client/SessionView.tsx`
+
 ### Nightly Audit (2026-07-11 — 5 Bugs Fixed, 1 Feature Shipped)
 
 **BUG-87 (RESOLVED, critical)**: `session_templates.is_pinned` (migration `017_template_pinning.sql`, shipped 2026-07-09) was never applied to the live DB — the migration's own header says "APPLY VIA: Supabase dashboard > SQL Editor" and no one had run it. `GET /api/templates` 500'd unconditionally for every PT for two days, completely breaking the "My Templates" picker in Session Builder.

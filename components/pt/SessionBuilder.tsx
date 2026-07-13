@@ -4,52 +4,12 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import {
   Exercise, SessionItem, Session, SessionCategory,
-  ForgingMetrics, HealingMetrics, VerseMetrics, PrescribedMetrics,
   SessionTemplate,
 } from '@/types/database';
 import { CATEGORY_CONFIG, formatMetricsSummary, getInitials, stripHtmlTags } from '@/lib/utils';
+import { METRIC_FIELDS, buildMetricsPayload } from '@/lib/metrics';
 import { extractYouTubeVideoId } from '@/lib/youtube';
 import { createClient } from '@/lib/supabase/client';
-
-// ─── Metric field configs by category ─────────────────────
-
-type FieldDef = {
-  key:        string;
-  label:      string;
-  type:       'number' | 'text' | 'select';
-  options?:   string[];
-  placeholder?: string;
-  unit?:      string;
-};
-
-const METRIC_FIELDS: Record<SessionCategory, FieldDef[]> = {
-  forging: [
-    { key: 'sets',         label: 'Sets',     type: 'number', placeholder: '4',      unit: 'sets' },
-    { key: 'reps',         label: 'Reps',     type: 'text',   placeholder: '8–12'   },
-    { key: 'weight_kg',    label: 'Weight',   type: 'number', placeholder: '80',     unit: 'kg'   },
-    { key: 'rest_seconds', label: 'Rest',     type: 'number', placeholder: '90',     unit: 's'    },
-    { key: 'tempo',        label: 'Tempo',    type: 'text',   placeholder: '3-1-1-0' },
-    { key: 'rpe',          label: 'RPE',      type: 'number', placeholder: '7'       },
-    { key: 'notes',        label: 'Notes',    type: 'text',   placeholder: 'Optional coaching note...' },
-  ],
-  healing: [
-    { key: 'sets',               label: 'Sets',        type: 'number', placeholder: '3',         unit: 'sets' },
-    { key: 'reps',               label: 'Reps',        type: 'number', placeholder: '10'         },
-    { key: 'hold_seconds',       label: 'Hold',        type: 'number', placeholder: '30',        unit: 's'    },
-    { key: 'rest_seconds',       label: 'Rest',        type: 'number', placeholder: '45',        unit: 's'    },
-    { key: 'side',               label: 'Side',        type: 'select',
-      options: ['bilateral', 'left', 'right', 'alternating'] },
-    { key: 'frequency_per_day',  label: 'Freq/Day',    type: 'number', placeholder: '2',         unit: '×/d'  },
-    { key: 'notes',              label: 'Notes',       type: 'text',   placeholder: 'Pain limit, technique cues...' },
-  ],
-  verse: [
-    { key: 'duration_minutes', label: 'Duration',   type: 'number', placeholder: '30',    unit: 'min'     },
-    { key: 'distance_km',      label: 'Distance',   type: 'number', placeholder: '5',     unit: 'km'      },
-    { key: 'pace_per_km',      label: 'Pace',       type: 'text',   placeholder: '5:30',  unit: '/km'     },
-    { key: 'heart_rate_zone',  label: 'HR Zone',    type: 'number', placeholder: '2'      },
-    { key: 'notes',            label: 'Notes',      type: 'text',   placeholder: 'Mindset cue, environment...' },
-  ],
-};
 
 // ─── Types ────────────────────────────────────────────────
 
@@ -149,6 +109,10 @@ function ExercisePicker({
       setLocalExercises(prev => prev.map(e => e.id === updated.id ? updated : e));
     }
   }
+
+  const duplicateMatch = newEx.name.trim()
+    ? localExercises.find(e => e.name.trim().toLowerCase() === newEx.name.trim().toLowerCase())
+    : null;
 
   async function handleCreate() {
     if (!newEx.name.trim()) { setCreateErr('Name is required.'); return; }
@@ -364,6 +328,20 @@ function ExercisePicker({
             <div>
               <label className="label block mb-1">Name <span className="text-red-400">*</span></label>
               <input autoFocus type="text" value={newEx.name} onChange={e => setNewEx(p => ({ ...p, name: e.target.value }))} className="input" placeholder="e.g. Copenhagen Adductor" />
+              {duplicateMatch && (
+                <div className="mt-1.5 flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/25">
+                  <p className="text-2xs font-mono text-amber-400">
+                    "{duplicateMatch.name}" already exists in the library.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => { onSelect(duplicateMatch); onClose(); }}
+                    className="flex-shrink-0 text-2xs font-mono text-indigo-400 hover:text-indigo-300 hover:underline"
+                  >
+                    Use existing →
+                  </button>
+                </div>
+              )}
             </div>
             <div>
               <label className="label block mb-2">Category</label>
@@ -904,25 +882,6 @@ function ItemCard({
 }
 
 // ─── Main Component ───────────────────────────────────────
-
-function buildMetricsPayload(
-  raw: Record<string, string>,
-  category: SessionCategory,
-): PrescribedMetrics {
-  const fields = METRIC_FIELDS[category];
-  const result: Record<string, unknown> = {};
-  for (const f of fields) {
-    const v = raw[f.key];
-    if (!v) continue;
-    if (f.type === 'number') {
-      const n = parseFloat(v);
-      if (!isNaN(n)) result[f.key] = n;
-    } else {
-      result[f.key] = v;
-    }
-  }
-  return result as PrescribedMetrics;
-}
 
 let draftIdCounter = 0;
 function newDraftId() { return `draft_${++draftIdCounter}`; }

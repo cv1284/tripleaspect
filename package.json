@@ -9,6 +9,7 @@
     "lint": "next lint",
     "type-check": "tsc --noEmit",
     "test:youtube": "npx tsx lib/youtube.ts",
+    "test:metrics": "npx tsx lib/metrics.ts",
     "seed:exercises": "npx tsx --env-file=.env.local scripts/seed-exercises.ts"
   },
   "dependencies": {
