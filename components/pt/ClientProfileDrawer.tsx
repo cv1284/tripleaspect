@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
-  ClientRow, AgreementStatus, AgreementModel,
+  ClientRow, AgreementStatus, AgreementModel, Milestone,
   OnboardingDocKey, getOnboardingDocs,
 } from '@/types/database';
 import { STATUS_CONFIG, getInitials, formatCurrency, deletionDaysRemaining, isDeletionOverdue } from '@/lib/utils';
@@ -32,6 +32,7 @@ interface FormState {
   goal_text:            string;
   goal_target_date:     string;
   goal_progress:        string;
+  milestones:           Milestone[];
   parq_signed:          boolean;
   parq_storage_url:     string;
   waiver_signed:        boolean;
@@ -56,6 +57,7 @@ function agreementToForm(client: ClientRow): FormState {
     goal_text:            a.goal_text ?? '',
     goal_target_date:     a.goal_target_date ?? '',
     goal_progress:        a.goal_progress?.toString() ?? '',
+    milestones:           a.milestones ?? [],
     parq_signed:          a.parq_signed,
     parq_storage_url:     a.parq_storage_url ?? '',
     waiver_signed:        a.waiver_signed,
@@ -337,6 +339,8 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
   const [checkinsLoading,    setCheckinsLoading]    = useState(false);
   const [complianceSessions, setComplianceSessions] = useState<SessionRow[]>([]);
   const [complianceLoading,  setComplianceLoading]  = useState(false);
+  const [newMilestoneText,   setNewMilestoneText]   = useState('');
+  const [newMilestoneDate,   setNewMilestoneDate]   = useState('');
 
   // Sync form when client changes
   useEffect(() => {
@@ -441,6 +445,30 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
     setForm(f => f ? { ...f, [key]: val } : f);
   }, []);
 
+  function addMilestone() {
+    if (!newMilestoneText.trim()) return;
+    const milestone: Milestone = {
+      id:          crypto.randomUUID(),
+      text:        newMilestoneText.trim().slice(0, 140),
+      target_date: newMilestoneDate || null,
+      progress:    0,
+    };
+    setForm(f => f ? { ...f, milestones: [...f.milestones, milestone] } : f);
+    setNewMilestoneText('');
+    setNewMilestoneDate('');
+  }
+
+  function updateMilestoneProgress(id: string, progress: number) {
+    setForm(f => f ? {
+      ...f,
+      milestones: f.milestones.map(m => m.id === id ? { ...m, progress } : m),
+    } : f);
+  }
+
+  function removeMilestone(id: string) {
+    setForm(f => f ? { ...f, milestones: f.milestones.filter(m => m.id !== id) } : f);
+  }
+
   async function handleRemoveClient() {
     if (!client) return;
     if (!confirmRemove) { setConfirmRemove(true); return; }
@@ -518,6 +546,7 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
       goal_text:            form.goal_text || null,
       goal_target_date:     form.goal_target_date || null,
       ...(form.goal_progress !== '' ? { goal_progress: parseInt(form.goal_progress) } : {}),
+      milestones:           form.milestones,
       parq_signed:          form.parq_signed,
       parq_storage_url:     form.parq_storage_url || null,
       waiver_signed:        form.waiver_signed,
@@ -742,6 +771,68 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* Milestones */}
+              <div>
+                <p className="section-header">Milestones</p>
+                {form.milestones.length > 0 && (
+                  <div className="space-y-3 mb-3">
+                    {form.milestones.map(m => (
+                      <div key={m.id} className="p-3 rounded-lg bg-surface-2 border border-surface-border">
+                        <div className="flex items-start justify-between gap-2 mb-1.5">
+                          <p className="text-sm text-slate-200 flex-1 min-w-0 break-words">{m.text}</p>
+                          <button
+                            type="button"
+                            onClick={() => removeMilestone(m.id)}
+                            className="text-slate-600 hover:text-rose-400 text-xs flex-shrink-0"
+                          >
+                            ×
+                          </button>
+                        </div>
+                        {m.target_date && (
+                          <p className="text-2xs font-mono text-slate-600 mb-1.5">by {m.target_date}</p>
+                        )}
+                        <div className="flex items-center justify-between mb-1">
+                          <input
+                            type="range"
+                            min="0" max="100" step="5"
+                            value={m.progress}
+                            onChange={e => updateMilestoneProgress(m.id, parseInt(e.target.value))}
+                            className={`w-full mr-2 ${m.progress === 100 ? 'accent-emerald-500' : 'accent-indigo-500'}`}
+                          />
+                          <span className={`text-xs font-mono flex-shrink-0 ${m.progress === 100 ? 'text-emerald-400' : 'text-indigo-400'}`}>
+                            {m.progress === 100 ? '🎉' : `${m.progress}%`}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newMilestoneText}
+                    onChange={e => setNewMilestoneText(e.target.value)}
+                    className="input flex-1"
+                    placeholder="e.g. Run 5k without stopping"
+                    maxLength={140}
+                  />
+                  <input
+                    type="date"
+                    value={newMilestoneDate}
+                    onChange={e => setNewMilestoneDate(e.target.value)}
+                    className="input w-36"
+                  />
+                  <button
+                    type="button"
+                    onClick={addMilestone}
+                    disabled={!newMilestoneText.trim() || form.milestones.length >= 20}
+                    className="btn-ghost px-3 text-sm disabled:opacity-40"
+                  >
+                    + Add
+                  </button>
+                </div>
               </div>
 
               {/* Sessions summary */}

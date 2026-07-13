@@ -6,7 +6,7 @@ import { CATEGORY_CONFIG } from '@/lib/utils';
 import PortalBanners from './PortalBanners';
 import ExerciseCard from './ExerciseCard';
 import WellbeingCheckin from './WellbeingCheckin';
-import { CompletionStreak, WellbeingTrend, ClientGoalCard } from './PortalStats';
+import { CompletionStreak, WellbeingTrend, ClientGoalCard, ClientMilestonesCard } from './PortalStats';
 import { format, parseISO } from 'date-fns';
 
 interface CheckinData {
@@ -261,6 +261,7 @@ export default function SessionView({ session, agreement, client, ptEmail, hasCh
         {/* Stats */}
         {streak !== undefined && <CompletionStreak streak={streak} />}
         <ClientGoalCard goalText={agreement.goal_text} goalTargetDate={agreement.goal_target_date} goalProgress={agreement.goal_progress} />
+        <ClientMilestonesCard milestones={agreement.milestones ?? []} />
         {recentCheckins && <WellbeingTrend checkins={recentCheckins} />}
 
         {/* Pre-session wellbeing check-in — shown only on incomplete sessions */}

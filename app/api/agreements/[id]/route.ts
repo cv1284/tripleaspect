@@ -72,7 +72,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     'consent_signed', 'consent_storage_url',
     'manual_price_numeric', 'manual_currency', 'billing_notes',
     'deletion_scheduled_at', 'deletion_reason',
-    'goal_text', 'goal_target_date', 'goal_progress',
+    'goal_text', 'goal_target_date', 'goal_progress', 'milestones',
   ] as const;
 
   const payload = Object.fromEntries(
@@ -130,6 +130,36 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: 'goal_progress must be an integer between 0 and 100' }, { status: 400 });
     }
     payload.goal_progress = pct;
+  }
+
+  // Validate milestones: array of { id, text, target_date, progress }, max 20 items
+  if ('milestones' in payload) {
+    const list = payload.milestones;
+    if (!Array.isArray(list) || list.length > 20) {
+      return NextResponse.json({ error: 'milestones must be an array of at most 20 items' }, { status: 400 });
+    }
+    const cleaned = [];
+    for (const item of list) {
+      if (typeof item !== 'object' || item === null) {
+        return NextResponse.json({ error: 'each milestone must be an object' }, { status: 400 });
+      }
+      const { id: mId, text, target_date, progress } = item as Record<string, unknown>;
+      if (typeof mId !== 'string' || !isValidUuid(mId)) {
+        return NextResponse.json({ error: 'each milestone must have a valid id' }, { status: 400 });
+      }
+      if (typeof text !== 'string' || !text.trim()) {
+        return NextResponse.json({ error: 'each milestone must have non-empty text' }, { status: 400 });
+      }
+      if (target_date !== null && !isValidDateString(target_date)) {
+        return NextResponse.json({ error: 'milestone target_date must be a valid date (YYYY-MM-DD) or null' }, { status: 400 });
+      }
+      const pct = Number(progress);
+      if (!Number.isInteger(pct) || pct < 0 || pct > 100) {
+        return NextResponse.json({ error: 'milestone progress must be an integer between 0 and 100' }, { status: 400 });
+      }
+      cleaned.push({ id: mId, text: stripHtmlTags(text).slice(0, 140), target_date, progress: pct });
+    }
+    payload.milestones = cleaned;
   }
 
   // Type-check the *_signed booleans before hitting the DB, same as every

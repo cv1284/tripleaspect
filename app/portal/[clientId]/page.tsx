@@ -6,7 +6,7 @@ import SessionView       from '@/components/client/SessionView';
 import PortalBanners     from '@/components/client/PortalBanners';
 import ClientOnboarding  from '@/components/client/ClientOnboarding';
 import PortalNav         from '@/components/client/PortalNav';
-import { CompletionStreak, WellbeingTrend, ClientGoalCard } from '@/components/client/PortalStats';
+import { CompletionStreak, WellbeingTrend, ClientGoalCard, ClientMilestonesCard } from '@/components/client/PortalStats';
 import { CATEGORY_CONFIG } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
 
@@ -208,6 +208,7 @@ export default async function ClientPortalPage({ params }: Props) {
             goalTargetDate={(agreement as unknown as ClientAgreement).goal_target_date}
             goalProgress={(agreement as unknown as ClientAgreement).goal_progress}
           />
+          <ClientMilestonesCard milestones={(agreement as unknown as ClientAgreement).milestones ?? []} />
           <WellbeingTrend checkins={recentCheckins ?? []} />
 
           {/* Rest day hero */}

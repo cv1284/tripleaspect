@@ -112,6 +112,13 @@ export interface SessionItem {
 
 // ─── Client Agreement ─────────────────────────────────────
 
+export interface Milestone {
+  id:          string;
+  text:        string;
+  target_date: string | null;
+  progress:    number;
+}
+
 export interface ClientAgreement {
   id:                     string;
   client_id:              string;
@@ -141,6 +148,7 @@ export interface ClientAgreement {
   goal_text:              string | null;
   goal_target_date:       string | null;
   goal_progress:          number | null;
+  milestones:             Milestone[];
 
   // Stripe (future)
   stripe_customer_id:     string | null;

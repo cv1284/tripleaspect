@@ -53,6 +53,51 @@ export function ClientGoalCard({
   );
 }
 
+interface Milestone {
+  id:          string;
+  text:        string;
+  target_date: string | null;
+  progress:    number;
+}
+
+export function ClientMilestonesCard({ milestones }: { milestones: Milestone[] }) {
+  if (!milestones || milestones.length === 0) return null;
+
+  return (
+    <div className="rounded-xl bg-surface-2 border border-surface-border px-4 py-3">
+      <p className="text-2xs font-mono text-slate-500 uppercase tracking-wide mb-2.5">Milestones</p>
+      <div className="space-y-3">
+        {milestones.map(m => {
+          const achieved = m.progress === 100;
+          const targetLabel = m.target_date
+            ? new Date(m.target_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+            : null;
+          return (
+            <div key={m.id}>
+              <div className="flex items-center gap-2">
+                <span className="text-base flex-shrink-0">{achieved ? '🎉' : '🔸'}</span>
+                <p className="text-xs text-slate-300 flex-1 min-w-0 truncate">{m.text}</p>
+                <span className={`text-2xs font-mono flex-shrink-0 ${achieved ? 'text-emerald-400' : 'text-indigo-400'}`}>
+                  {achieved ? 'Done' : `${m.progress}%`}
+                </span>
+              </div>
+              <div className="h-1 rounded-full bg-surface-border overflow-hidden mt-1 ml-6">
+                <div
+                  className={`h-full rounded-full transition-all ${achieved ? 'bg-emerald-500' : 'bg-indigo-500'}`}
+                  style={{ width: `${m.progress}%` }}
+                />
+              </div>
+              {targetLabel && !achieved && (
+                <p className="text-2xs font-mono text-slate-600 mt-0.5 ml-6">by {targetLabel}</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function ScoreBar({ value, max = 5, color }: { value: number; max?: number; color: string }) {
   const pct = (value / max) * 100;
   return (
