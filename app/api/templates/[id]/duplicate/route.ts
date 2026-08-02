@@ -39,12 +39,15 @@ export async function POST(_req: NextRequest, { params }: Params) {
   }
 
   // Create the copy as a private template owned by the current PT
+  const rawTitle = `Copy of ${source.title}`;
+  const newTitle = rawTitle.length > 100 ? rawTitle.slice(0, 100) : rawTitle;
+
   const { data: copy, error: copyErr } = await supabase
     .from('session_templates')
     .insert({
       pt_id:    user.id,
       pt_name:  profile.full_name ?? null,
-      title:    `Copy of ${source.title}`,
+      title:    newTitle,
       category: source.category,
       notes:    source.notes ?? null,
       is_public: false,

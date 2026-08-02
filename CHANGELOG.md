@@ -4,6 +4,25 @@ All notable changes to brigid.pro are documented here.
 
 ## [Unreleased]
 
+### Weekly Audit & Ship (2026-08-02 — 2 Bugs Fixed, 1 Backlog Bug Shipped)
+
+First full data-boundary audit since 2026-07-13 (the intervening three Sundays only ran the lighter daily health check — API code was unchanged in that window per `git log`, confirmed before re-auditing). Live-tested Suite A/B/C against every PT and client data-entry route (exercises, clients, programmes, save-tree, templates, agreements, bug-reports, portal check-ins/photos, client docs) via authenticated `fetch()`.
+
+**BUG-98 (RESOLVED)**: `PATCH /api/programmes/[id]` had no `typeof` check on `description`, unlike every sibling route (`exercises`, `templates`, `agreements` all reject non-string with 400). A non-string value (e.g. a number or array) skipped `stripHtmlTags()` and was coerced straight to a JSON-stringified value in the DB (`description: ["a","b"]` persisted as the literal string `["a","b"]`).
+- **Fix**: added the same `typeof === 'string'` guard (allowing `null` to clear the field) used elsewhere. `app/api/programmes/[id]/route.ts`.
+
+**BUG-99 (RESOLVED)**: `PATCH /api/programmes/[id]` validated `category` with a truthy check (`patch.category && !validCategories.includes(...)`), so `category: ""` bypassed validation entirely and reached Postgres raw, leaking `"invalid input value for enum session_category: \"\""` as a 500 — same bug class as the previously-fixed BUG-BRIGID-05.
+- **Fix**: changed the guard to `patch.category !== null && !validCategories.includes(...)`, so empty string is now rejected as invalid while `null` (clear category) and valid values still work. `app/api/programmes/[id]/route.ts`.
+
+**BUG-81 (RESOLVED, backlog)**: `templates/[id]/duplicate` had no length clamp on the "Copy of …" title, unlike `programmes/[id]/duplicate` (truncates to 100 chars) — duplicating a near-max-length template title risked an unhandled raw DB error.
+- **Fix**: mirrored the `programmes/[id]/duplicate` clamp pattern (`rawTitle.slice(0, 100)`). `app/api/templates/[id]/duplicate/route.ts`. Filled the third bandwidth slot in place of a backlog feature — every unscheduled backlog feature (AI session suggestions, in-app messaging, group sessions, referral system) required more than a self-contained single-migration change this week.
+
+**Data-boundary audit**: all other tested routes came back clean — script tags and SQL-injection-shaped strings were correctly stripped/parameterized, numeric fields clamped to documented bounds, unknown/whitelist-violating fields rejected. No other new bugs found.
+
+**DB sanitation**: deduplicated the 6 accumulated "Smoke Test Squat" exercises down to 1 (5 were unreferenced, safe to delete; the 6th was kept as it's still FK-referenced), deleted the 2 leftover 2026-07-14 "Smoke Test Session" rows (freeing up that FK reference too), cleared the stray `alert(1)` text from the test client's `goal_text`, and removed one Suite-C-only `bug_reports` test row (kept BUG-98/BUG-99 as real evidence). Also resolved a repo-hygiene item flagged by the daily health check: committed three weeks of untracked `.claude/nightly-status/*.md` run logs and removed a redundant `archive/` subfolder that only ever held stale, shorter duplicates of files already present at the top level (verified via diff before deleting).
+
+**Notion**: BUG-98/BUG-99 logged and marked resolved; BUG-81 marked resolved; BUG-80 (previously fixed 2026-07-11/12 per this changelog but never moved out of the Roadmap's open-bugs list) corrected to resolved — Notion was stale, code already had the fix.
+
 ### Nightly Audit (2026-07-13 — 1 Bug Fixed, 2 Features Shipped)
 
 **BUG-96 (RESOLVED)**: `SessionBuilder.tsx`'s per-exercise `prescribed_metrics` (sets, reps, weight_kg, rest_seconds, tempo, rpe, notes, and the healing/verse equivalents) had zero validation before being written directly to Supabase — no numeric bounds (sets=99999, weight_kg=-50, rest_seconds=999999, rpe=15 all saved silently) and, worse, the text fields (`reps`, `notes`, `tempo`, `pace_per_km`) were never passed through `stripHtmlTags()` unlike every other text field in this same write path (title/notes/coaching_cues, fixed for BUG-61). `<script>alert(2)</script>AMRAP` persisted verbatim in `reps`. Same underlying architectural gap as the still-open BUG-67 (no API route for sessions/session_items at all), but scoped here to the specific sanitization/bounds gap flagged by tonight's audit rather than the larger "add a real API route" rewrite.

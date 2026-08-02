@@ -81,12 +81,15 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     patch.title = stripHtmlTags((patch.title as string).trim());
     if (!patch.title) return NextResponse.json({ error: 'Title cannot be empty' }, { status: 400 });
   }
+  if ('description' in patch && patch.description !== null && typeof patch.description !== 'string') {
+    return NextResponse.json({ error: 'description must be a string' }, { status: 400 });
+  }
   if ('description' in patch && typeof patch.description === 'string') {
     patch.description = stripHtmlTags(patch.description.trim()) || null;
   }
 
   const validCategories = ['healing', 'forging', 'verse'];
-  if ('category' in patch && patch.category && !validCategories.includes(patch.category as string)) {
+  if ('category' in patch && patch.category !== null && !validCategories.includes(patch.category as string)) {
     return NextResponse.json({ error: 'Invalid category. Must be one of: healing, forging, verse' }, { status: 400 });
   }
 
