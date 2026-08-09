@@ -152,7 +152,6 @@ function SessionCard({ session, today }: { session: Session; today: string }) {
 // ─── Checkin Card ─────────────────────────────────────────────
 
 const SCORE_FIELDS = ['sleep', 'stress', 'soreness'] as const;
-type ScoreField = typeof SCORE_FIELDS[number];
 
 function CheckinCard({ c, onDeleted }: { c: WellbeingCheckinData; onDeleted: (id: string) => void }) {
   const [editing, setEditing] = useState(false);
