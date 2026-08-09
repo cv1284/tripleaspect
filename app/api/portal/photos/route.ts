@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient }      from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { stripHtmlTags, isValidUuid, isValidDateString } from '@/lib/utils';
+import { matchesDeclaredType } from '@/lib/file-signature';
 
 const BUCKET        = 'progress-photos';
 const MAX_BYTES     = 10 * 1024 * 1024; // 10 MB
@@ -17,6 +18,20 @@ export async function POST(req: NextRequest) {
     .from('profiles').select('role').eq('id', user.id).single();
   if (profile?.role !== 'client') {
     return NextResponse.json({ error: 'Only clients can upload progress photos' }, { status: 403 });
+  }
+
+  // Rate limit: 20 uploads per client per hour — mirrors the bug-reports pattern
+  const windowStart = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { count } = await supabase
+    .from('progress_photos')
+    .select('id', { count: 'exact', head: true })
+    .eq('client_id', user.id)
+    .gte('created_at', windowStart);
+  if ((count ?? 0) >= 20) {
+    return NextResponse.json(
+      { error: 'Too many photo uploads — please wait before uploading more.' },
+      { status: 429 }
+    );
   }
 
   const formData = await req.formData();
@@ -42,6 +57,9 @@ export async function POST(req: NextRequest) {
   const ext    = file.type.split('/')[1];
   const path   = `${user.id}/${Date.now()}.${ext}`;
   const buffer = Buffer.from(await file.arrayBuffer());
+  if (!matchesDeclaredType(buffer, file.type)) {
+    return NextResponse.json({ error: 'File content does not match a JPEG, PNG or WebP image.' }, { status: 400 });
+  }
   const admin  = createAdminClient();
 
   const { error: uploadErr } = await admin.storage

@@ -154,14 +154,25 @@ function SessionCard({ session, today }: { session: Session; today: string }) {
 const SCORE_FIELDS = ['sleep', 'stress', 'soreness'] as const;
 type ScoreField = typeof SCORE_FIELDS[number];
 
-function CheckinCard({ c }: { c: WellbeingCheckinData }) {
+function CheckinCard({ c, onDeleted }: { c: WellbeingCheckinData; onDeleted: (id: string) => void }) {
   const [editing, setEditing] = useState(false);
   const [scores,  setScores]  = useState({ sleep: c.sleep, stress: c.stress, soreness: c.soreness });
   const [notes,   setNotes]   = useState(c.notes ?? '');
   const [saving,  setSaving]  = useState(false);
   const [current, setCurrent] = useState(c);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting,      setDeleting]      = useState(false);
 
   const dateStr = format(parseISO(current.created_at), 'EEE d MMM yyyy');
+
+  async function handleDelete() {
+    if (!confirmDelete) { setConfirmDelete(true); return; }
+    setDeleting(true);
+    const res = await fetch(`/api/portal/checkin/${current.id}`, { method: 'DELETE' });
+    setDeleting(false);
+    if (res.ok) onDeleted(current.id);
+    else setConfirmDelete(false);
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -278,6 +289,20 @@ function CheckinCard({ c }: { c: WellbeingCheckinData }) {
       >
         ✎
       </button>
+
+      <button
+        onClick={handleDelete}
+        disabled={deleting}
+        className={`text-xs font-mono flex-shrink-0 transition-colors px-1.5 py-1 rounded ${
+          confirmDelete
+            ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+            : 'text-slate-600 hover:text-red-400'
+        }`}
+        aria-label="Delete check-in"
+        title="Delete check-in"
+      >
+        {deleting ? '…' : confirmDelete ? 'Confirm?' : '✕'}
+      </button>
     </div>
   );
 }
@@ -322,6 +347,8 @@ interface Props {
 }
 
 export default function HistoryClient({ groups, checkins, records, today }: Props) {
+  const [checkinList, setCheckinList] = useState(checkins);
+
   return (
     <div className="space-y-6">
       {groups.length === 0 ? (
@@ -341,11 +368,15 @@ export default function HistoryClient({ groups, checkins, records, today }: Prop
         ))
       )}
 
-      {checkins.length > 0 && (
+      {checkinList.length > 0 && (
         <div className="space-y-2">
           <h2 className="text-xs font-mono text-slate-500 uppercase tracking-widest px-1">Wellbeing Check-ins</h2>
-          {checkins.map(c => (
-            <CheckinCard key={c.id} c={c} />
+          {checkinList.map(c => (
+            <CheckinCard
+              key={c.id}
+              c={c}
+              onDeleted={id => setCheckinList(prev => prev.filter(x => x.id !== id))}
+            />
           ))}
         </div>
       )}

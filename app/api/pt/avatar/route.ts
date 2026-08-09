@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { matchesDeclaredType } from '@/lib/file-signature';
 
 const BUCKET        = 'pt-logos';   // reuse same bucket, different path prefix
 const MAX_BYTES     = 5 * 1024 * 1024; // 5 MB — photos are larger than logos
@@ -26,6 +27,9 @@ export async function POST(req: NextRequest) {
   const ext    = file.type.split('/')[1];
   const path   = `${user.id}/avatar.${ext}`;
   const buffer = Buffer.from(await file.arrayBuffer());
+  if (!matchesDeclaredType(buffer, file.type)) {
+    return NextResponse.json({ error: 'File content does not match a JPEG, PNG or WebP image.' }, { status: 400 });
+  }
 
   const admin = createAdminClient();
   const { error: uploadErr } = await admin.storage

@@ -4,6 +4,26 @@ All notable changes to brigid.pro are documented here.
 
 ## [Unreleased]
 
+### Weekly Audit & Ship (2026-08-09 — 3 Bugs Fixed, 1 Backlog Feature Shipped)
+
+Reviewed the standing `bug_reports` queue (10 open rows) alongside a targeted live Suite A/B/C pass via authenticated `fetch()` against routes flagged since the last audit. Several previously-fixed bugs (BUG-98, BUG-96, BUG-81) were still marked `open` in the `bug_reports` table despite being resolved in code/Notion on 2026-08-02 or earlier — DB status just hadn't been synced; noted for future runs.
+
+**BUG-79 (RESOLVED)**: `PATCH /api/admin/pts/[ptId]` validated `free_client_quota` with `typeof !== 'number' || x < 0`, which admits `NaN` and `Infinity` (`NaN < 0` and `Infinity < 0` are both `false` in JS) and any non-integer (`3.7`) — all would have reached the DB unclamped.
+- **Fix**: added `Number.isFinite`, `Number.isInteger`, and an upper bound (10,000) to the guard. `app/api/admin/pts/[ptId]/route.ts`.
+
+**Magic-byte / file-signature verification (RESOLVED — closes bug_reports #67 and #89)**: `POST /api/portal/photos`, `POST /api/exercises/video`, `POST /api/pt/logo`, and `POST /api/pt/avatar` all trusted the client-declared `File.type` to pick the allowlist bucket and stored that same declared type as the object's public `Content-Type`, with no check against the actual file bytes. Repro (confirmed live): a plain-text blob declared as `image/png` was accepted (201) and served back publicly with a forged `Content-Type: image/png` header — the same trust-the-client-label gap existed for `video/mp4` uploads.
+- **Fix**: new `lib/file-signature.ts` sniffs the real file type from magic bytes (PNG/JPEG/GIF/WebP signatures, WebM's EBML header, and the ISO-BMFF box structure shared by MP4/QuickTime) with no new dependency, and `matchesDeclaredType()` is now checked against the uploaded buffer before any of the four routes accept a file.
+- **Verified live**: re-ran the exact repros from bug_reports #67 (text-as-PNG) and #89 (HTML-as-MP4) — both now rejected with 400 before upload; a genuine 1×1 PNG still uploads successfully (no regression).
+- **Files**: `lib/file-signature.ts` (new), `app/api/portal/photos/route.ts`, `app/api/exercises/video/route.ts`, `app/api/pt/logo/route.ts`, `app/api/pt/avatar/route.ts`.
+
+**Wellbeing check-in delete UI (RESOLVED — closes bug_reports #100)**: flagged by tonight's daily health check — `DELETE /api/portal/checkin/[id]` has existed since 27 Jun 2026, but no UI ever called it. Neither the client History page (edit-only pencil icon) nor the PT's Client Profile Drawer (read-only display) offered a way to remove an accidental or test check-in.
+- **Fix**: added a ✕ → "Confirm?" delete control next to the existing edit pencil on the client History page's check-in cards, mirroring the two-step confirm pattern already used for session deletion in `ClientProfileDrawer`. Client-only, matching the existing API's role check (the PT-side view stays read-only since the endpoint doesn't permit PT deletes).
+- **Verified live**: used the new control to delete the leftover 9 Aug "Smoke test" check-in the daily health check couldn't clean up — 200 OK, card removed from the list.
+- **Files**: `components/client/HistoryClient.tsx`.
+
+**Feature (backlog, Technical Debt — "Rate limiting on API routes"): `POST /api/portal/photos` upload rate limit**. The only precedent for API rate limiting (`bug-reports`, and `clients/[id]/resend-invite` since 2026-07-08) hadn't been extended to any other route. Progress-photo upload had none, despite writing to public Storage. Added a 20-uploads-per-client-per-hour limit using the same count-query pattern as `bug-reports` (no new migration — queries `progress_photos.created_at` directly, unlike `resend-invite`'s dedicated cooldown column).
+- **Files**: `app/api/portal/photos/route.ts`.
+
 ### Weekly Audit & Ship (2026-08-02 — 2 Bugs Fixed, 1 Backlog Bug Shipped)
 
 First full data-boundary audit since 2026-07-13 (the intervening three Sundays only ran the lighter daily health check — API code was unchanged in that window per `git log`, confirmed before re-auditing). Live-tested Suite A/B/C against every PT and client data-entry route (exercises, clients, programmes, save-tree, templates, agreements, bug-reports, portal check-ins/photos, client docs) via authenticated `fetch()`.

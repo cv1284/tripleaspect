@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient }      from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { matchesDeclaredType } from '@/lib/file-signature';
 
 const BUCKET        = 'exercise-videos';
 const MAX_BYTES     = 25 * 1024 * 1024; // 25 MB — matches the bucket's file_size_limit
@@ -36,6 +37,9 @@ export async function POST(req: NextRequest) {
 
   const path   = `${user.id}/${crypto.randomUUID()}.${ext}`;
   const buffer = Buffer.from(await file.arrayBuffer());
+  if (!matchesDeclaredType(buffer, file.type)) {
+    return NextResponse.json({ error: 'File content does not match a valid MP4, WebM, MOV or GIF.' }, { status: 400 });
+  }
 
   const admin = createAdminClient();
   const { error: uploadErr } = await admin.storage

@@ -21,7 +21,13 @@ export async function PATCH(
   if (body === null) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   const { free_client_quota } = body as { free_client_quota?: unknown };
 
-  if (typeof free_client_quota !== 'number' || free_client_quota < 0) {
+  if (
+    typeof free_client_quota !== 'number' ||
+    !Number.isFinite(free_client_quota) ||
+    !Number.isInteger(free_client_quota) ||
+    free_client_quota < 0 ||
+    free_client_quota > 10000
+  ) {
     return NextResponse.json({ error: 'Invalid quota value.' }, { status: 400 });
   }
 
