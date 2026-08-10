@@ -109,9 +109,9 @@ export async function POST(
       const items = (session.items ?? []).sort((a, b) => a.sort_order - b.sort_order);
       if (items.length === 0) continue;
 
-      await supabase.from('programme_session_items').insert(
+      const { error: itemsErr } = await supabase.from('programme_session_items').insert(
         items.map(item => ({
-          session_id:           newSession.id,
+          programme_session_id: newSession.id,
           exercise_id:          item.exercise_id ?? null,
           sort_order:           item.sort_order,
           prescribed_metrics:   item.prescribed_metrics ?? null,
@@ -119,6 +119,7 @@ export async function POST(
           custom_youtube_url:   item.custom_youtube_url ?? null,
         })),
       );
+      if (itemsErr) console.error('Failed to copy session items during programme duplication:', itemsErr.message);
     }
   }
 

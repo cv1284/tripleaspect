@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { readJsonBody, isValidUuid, stripHtmlTags } from '@/lib/utils';
 
 interface SessionPayload {
+  id?:          unknown; // real DB UUID for an existing session, or a client-local placeholder (e.g. "local_...") for a new one
   day_of_week:  number;
   title:        string;
   category:     string;
@@ -17,9 +18,13 @@ interface WeekPayload {
 }
 
 // POST /api/programmes/[id]/save-tree
-// Replaces the session grid for a programme. Accepts an array of week objects,
-// each with their DB UUID and an array of sessions. Existing sessions are wiped
-// per-week and replaced — safe because session items are not yet authored in the builder.
+// Reconciles the session grid for a programme. Accepts an array of week objects,
+// each with their DB UUID and an array of sessions. Sessions whose id already
+// exists on that week are updated in place (preserving their programme_session_items,
+// which cascade-delete if the row itself is deleted); sessions with no matching
+// existing id are inserted as new; existing sessions no longer present in the
+// payload are deleted (correctly cascading their items, since the session itself
+// was removed from the grid).
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
@@ -76,9 +81,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'One or more weeks were not found on this programme; no changes were saved' }, { status: 400 });
   }
 
-  // Validate every session in every targeted week BEFORE deleting anything —
-  // otherwise one invalid session anywhere in the payload silently wipes
-  // that week's already-saved sessions with no replacement (data loss).
+  // Validate every session in every targeted week BEFORE writing anything —
+  // otherwise one invalid session anywhere in the payload silently applies
+  // a partial save with no signal to the caller.
   for (const week of targetWeeks) {
     for (const s of week.sessions ?? []) {
       const validSession =
@@ -92,23 +97,45 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
   }
 
-  for (const week of targetWeeks) {
-    // Wipe existing sessions for this week then re-insert
-    await supabase.from('programme_sessions').delete().eq('week_id', week.id);
+  // Fetch existing sessions for the targeted weeks so we can reconcile
+  // (update in place / insert / delete) instead of wiping and reinserting —
+  // a blind wipe would cascade-delete every session's programme_session_items.
+  const { data: existingSessions } = await supabase
+    .from('programme_sessions')
+    .select('id, week_id')
+    .in('week_id', targetWeeks.map(w => w.id));
+  const existingIdsByWeek = new Map<string, Set<string>>();
+  for (const s of existingSessions ?? []) {
+    if (!existingIdsByWeek.has(s.week_id)) existingIdsByWeek.set(s.week_id, new Set());
+    existingIdsByWeek.get(s.week_id)!.add(s.id);
+  }
 
+  for (const week of targetWeeks) {
+    const existingIds = existingIdsByWeek.get(week.id) ?? new Set<string>();
     const sessions = week.sessions ?? [];
-    if (sessions.length > 0) {
-      await supabase.from('programme_sessions').insert(
-        sessions.map((s, idx) => ({
-          week_id:     week.id,
-          day_of_week: s.day_of_week,
-          title:       stripHtmlTags(s.title.trim()),
-          category:    s.category,
-          notes:       typeof s.notes === 'string' ? stripHtmlTags(s.notes) || null : null,
-          sort_order:  s.sort_order ?? idx,
-          template_id: isValidUuid(s.template_id ?? '') ? s.template_id : null,
-        })),
-      );
+    const keptIds = new Set(
+      sessions.filter(s => typeof s.id === 'string' && existingIds.has(s.id)).map(s => s.id as string),
+    );
+
+    for (const [idx, s] of sessions.entries()) {
+      const row = {
+        day_of_week: s.day_of_week,
+        title:       stripHtmlTags(s.title.trim()),
+        category:    s.category,
+        notes:       typeof s.notes === 'string' ? stripHtmlTags(s.notes) || null : null,
+        sort_order:  s.sort_order ?? idx,
+        template_id: isValidUuid(s.template_id ?? '') ? s.template_id : null,
+      };
+      if (typeof s.id === 'string' && keptIds.has(s.id)) {
+        await supabase.from('programme_sessions').update(row).eq('id', s.id);
+      } else {
+        await supabase.from('programme_sessions').insert({ week_id: week.id, ...row });
+      }
+    }
+
+    const toDeleteIds = [...existingIds].filter(id => !keptIds.has(id));
+    if (toDeleteIds.length > 0) {
+      await supabase.from('programme_sessions').delete().in('id', toDeleteIds);
     }
   }
 

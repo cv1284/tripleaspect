@@ -315,6 +315,7 @@ export default function ProgrammeBuilder({ programme: initial, clients }: Props)
           weeks: programme.weeks?.map(w => ({
             id:       w.id,
             sessions: (w.sessions ?? []).map((s, idx) => ({
+              id:          s.id,
               day_of_week: s.day_of_week,
               title:       s.title,
               category:    s.category,
