@@ -3,11 +3,11 @@ import Stripe from 'stripe';
 // Lazy singleton — avoids module-level instantiation that crashes Next.js during
 // "Collecting page data" when STRIPE_SECRET_KEY is absent in the build environment.
 let _stripe: Stripe | null = null;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getStripe(): Stripe {
   if (!_stripe) {
     const key = process.env.STRIPE_SECRET_KEY;
     if (!key) throw new Error('STRIPE_SECRET_KEY is not configured');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     _stripe = new Stripe(key, { apiVersion: '2025-01-27.acacia' as any });
   }
   return _stripe;

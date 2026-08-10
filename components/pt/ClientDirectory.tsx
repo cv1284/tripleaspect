@@ -4,9 +4,9 @@
 
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { ClientRow, AgreementStatus, AgreementModel, SessionCategory } from '@/types/database';
+import { ClientRow, AgreementStatus, AgreementModel } from '@/types/database';
 import {
-  STATUS_CONFIG, CATEGORY_CONFIG,
+  STATUS_CONFIG,
   daysUntilRenewal, isOnboardingComplete, getInitials, formatCurrency,
   isDeletionOverdue, deletionDaysRemaining, daysSince,
 } from '@/lib/utils';
@@ -287,7 +287,7 @@ export default function ClientDirectory({ clients, onSelectClient, onAddClient }
               {clients.filter(c => isDeletionOverdue(c.agreement.deletion_scheduled_at)).length} account(s) past deletion date
             </p>
             <p className="text-slate-500 text-xs">
-              Open each flagged client and use "GDPR: Request permanent data erasure" to complete the deletion.
+              Open each flagged client and use &quot;GDPR: Request permanent data erasure&quot; to complete the deletion.
             </p>
           </div>
         </div>

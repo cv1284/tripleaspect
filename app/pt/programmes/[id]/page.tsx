@@ -66,7 +66,7 @@ export default async function ProgrammeBuilderPage({ params }: Props) {
 
   // Profiles can come back null due to RLS join quirk — fetch via admin as fallback
   const nullClientIds = (agreements ?? []).filter(a => a.client == null).map(a => a.client_id);
-  let adminProfiles: Record<string, ClientProfile> = {};
+  const adminProfiles: Record<string, ClientProfile> = {};
   if (nullClientIds.length > 0) {
     const admin = createAdminClient();
     const { data: fallback } = await admin

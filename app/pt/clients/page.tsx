@@ -93,7 +93,7 @@ export default async function ClientsPage() {
     .filter(a => a.client == null)
     .map(a => a.client_id);
 
-  let adminProfiles: Record<string, Record<string, unknown>> = {};
+  const adminProfiles: Record<string, Record<string, unknown>> = {};
   if (nullClientIds.length > 0) {
     const admin = createAdminClient();
     const { data: fallbackProfiles } = await admin
@@ -128,5 +128,5 @@ export default async function ClientsPage() {
       } as ClientRow;
     });
 
-  return <ClientsPageClient clients={clients} ptId={user.id} />;
+  return <ClientsPageClient clients={clients} />;
 }

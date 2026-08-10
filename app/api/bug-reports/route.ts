@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
 }
 
 // GET /api/bug-reports — admin only
-export async function GET(req: NextRequest) {
+export async function GET() {
   const adminEmail = process.env.ADMIN_EMAIL;
   const supabase   = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

@@ -4,9 +4,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   ClientRow, AgreementStatus, AgreementModel, Milestone,
-  OnboardingDocKey, getOnboardingDocs,
 } from '@/types/database';
-import { STATUS_CONFIG, getInitials, formatCurrency, deletionDaysRemaining, isDeletionOverdue } from '@/lib/utils';
+import { STATUS_CONFIG, getInitials, deletionDaysRemaining, isDeletionOverdue } from '@/lib/utils';
 import GdprRemoveModal from '@/components/pt/GdprRemoveModal';
 
 // ─── Types ────────────────────────────────────────────────
@@ -582,7 +581,6 @@ export default function ClientProfileDrawer({ client, onClose, onSaved, onDelete
   if (!client || !form) return null;
 
   const initials = getInitials(client.full_name);
-  const statusCfg = STATUS_CONFIG[form.status];
 
   return (
     <>

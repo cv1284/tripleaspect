@@ -91,7 +91,7 @@ function LandingPage() {
 
           <p className="text-lg text-slate-400 leading-relaxed max-w-xl mx-auto">
             Brigid.pro is a coaching platform built around the idea that lasting transformation
-            requires attention to the body, the body's capacity to perform, and the mind that drives it.
+            requires attention to the body, the body&apos;s capacity to perform, and the mind that drives it.
           </p>
 
           <div className="flex items-center justify-center gap-3 pt-2">
@@ -179,7 +179,7 @@ function LandingPage() {
               </div>
             </div>
             <p className="text-sm text-slate-400 leading-relaxed">
-              The connective tissue of a complete programme. Sustainable change doesn't live
+              The connective tissue of a complete programme. Sustainable change doesn&apos;t live
               only in the gym — it lives in the decisions made between sessions. Verse addresses
               the habits, patterns, and mindset that determine whether training sticks for a season
               or a lifetime.

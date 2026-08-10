@@ -18,7 +18,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   const body = await readJsonBody(req);
   if (body === null) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
-  const { resolved_note } = body as { resolved_note?: any };
+  const { resolved_note } = body as { resolved_note?: unknown };
   const admin = createAdminClient();
 
   // Fetch the report first to guard against double-resolve + get reporter info
@@ -33,11 +33,15 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Already resolved' }, { status: 400 });
   }
 
+  const cleanResolvedNote = typeof resolved_note === 'string'
+    ? stripHtmlTags(resolved_note.trim()).slice(0, 2000) || null
+    : null;
+
   const { error } = await admin
     .from('bug_reports')
     .update({
       status:        'resolved',
-      resolved_note: typeof resolved_note === 'string' ? stripHtmlTags(resolved_note.trim()).slice(0, 2000) || null : null,
+      resolved_note: cleanResolvedNote,
       resolved_at:   new Date().toISOString(),
     })
     .eq('id', id);
@@ -50,7 +54,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     userId:       existing.user_id,
     label,
     pageTitle:    existing.page_title,
-    resolvedNote: resolved_note || null,
+    resolvedNote: cleanResolvedNote,
   }).catch(console.error);
 
   return NextResponse.json({ ok: true });

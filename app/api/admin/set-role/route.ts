@@ -22,9 +22,9 @@ export async function POST(req: NextRequest) {
 
   const body = await readJsonBody(req);
   if (body === null) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
-  const { userId, role } = body as { userId?: any; role?: any };
+  const { userId, role } = body as { userId?: unknown; role?: unknown };
 
-  if (!userId || !isValidUuid(userId) || !['pt', 'client'].includes(role)) {
+  if (typeof userId !== 'string' || !isValidUuid(userId) || typeof role !== 'string' || !['pt', 'client'].includes(role)) {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
   }
 

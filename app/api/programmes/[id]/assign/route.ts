@@ -17,11 +17,11 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   const body = await readJsonBody(req);
   if (body === null) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
-  const { clientId, startDate } = body as { clientId?: any; startDate?: any };
+  const { clientId, startDate } = body as { clientId?: unknown; startDate?: unknown };
   if (!clientId || !startDate) {
     return NextResponse.json({ error: 'clientId and startDate are required' }, { status: 400 });
   }
-  if (!isValidUuid(clientId)) return NextResponse.json({ error: 'Invalid clientId' }, { status: 400 });
+  if (typeof clientId !== 'string' || !isValidUuid(clientId)) return NextResponse.json({ error: 'Invalid clientId' }, { status: 400 });
 
   if (!isValidDateString(startDate)) {
     return NextResponse.json({ error: 'startDate must be a valid ISO date (YYYY-MM-DD)' }, { status: 400 });

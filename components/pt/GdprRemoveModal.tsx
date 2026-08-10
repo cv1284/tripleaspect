@@ -140,7 +140,7 @@ export default function GdprRemoveModal({ client, onClose, onDeleted }: Props) {
                 </div>
 
                 <div className="p-3 rounded-xl bg-surface-3 border border-surface-border text-xs font-mono text-slate-500 leading-relaxed">
-                  On the next step you'll export a JSON backup of their full history. You can email this to the client and re-import it if they ever return.
+                  On the next step you&apos;ll export a JSON backup of their full history. You can email this to the client and re-import it if they ever return.
                 </div>
 
                 <button
@@ -159,7 +159,7 @@ export default function GdprRemoveModal({ client, onClose, onDeleted }: Props) {
                 <div>
                   <p className="text-sm font-medium text-slate-200 mb-1">Export client data</p>
                   <p className="text-xs font-mono text-slate-500 mb-3 leading-relaxed">
-                    Download a complete JSON record of {clientName}'s history. Email it to the client and keep a copy for your records.
+                    Download a complete JSON record of {clientName}&apos;s history. Email it to the client and keep a copy for your records.
                   </p>
                   <button
                     onClick={handleDownload}

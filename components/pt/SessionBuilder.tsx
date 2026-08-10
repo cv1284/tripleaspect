@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import {
-  Exercise, SessionItem, Session, SessionCategory,
+  Exercise, Session, SessionCategory,
   SessionTemplate,
 } from '@/types/database';
-import { CATEGORY_CONFIG, formatMetricsSummary, getInitials, stripHtmlTags } from '@/lib/utils';
+import { CATEGORY_CONFIG, formatMetricsSummary, stripHtmlTags } from '@/lib/utils';
 import { METRIC_FIELDS, buildMetricsPayload } from '@/lib/metrics';
 import { extractYouTubeVideoId } from '@/lib/youtube';
 import { createClient } from '@/lib/supabase/client';
@@ -235,7 +235,7 @@ function ExercisePicker({
               <div className="py-8 text-center space-y-2">
                 <p className="text-slate-600 text-sm font-mono">No exercises found</p>
                 <button onClick={() => setCreating(true)} className="text-indigo-400 text-xs font-mono hover:underline">
-                  Create "{search}" as a new exercise →
+                  Create &quot;{search}&quot; as a new exercise →
                 </button>
               </div>
             ) : (
@@ -331,7 +331,7 @@ function ExercisePicker({
               {duplicateMatch && (
                 <div className="mt-1.5 flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/25">
                   <p className="text-2xs font-mono text-amber-400">
-                    "{duplicateMatch.name}" already exists in the library.
+                    &quot;{duplicateMatch.name}&quot; already exists in the library.
                   </p>
                   <button
                     type="button"

@@ -52,7 +52,6 @@ export async function POST(req: NextRequest) {
 }
 
 // DELETE /api/pt/avatar — removes profile photo and clears avatar_url
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- Next.js route handlers require the request param positionally
 export async function DELETE(_req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

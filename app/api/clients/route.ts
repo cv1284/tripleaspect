@@ -22,9 +22,9 @@ export async function POST(req: NextRequest) {
     agreement_model, start_date, renewal_date, program_length_weeks,
     manual_price_numeric, manual_currency,
   } = reqBody as {
-    full_name?: any; email?: any;
-    agreement_model?: any; start_date?: any; renewal_date?: any; program_length_weeks?: any;
-    manual_price_numeric?: any; manual_currency?: any;
+    full_name?: unknown; email?: unknown;
+    agreement_model?: unknown; start_date?: unknown; renewal_date?: unknown; program_length_weeks?: unknown;
+    manual_price_numeric?: unknown; manual_currency?: unknown;
   };
 
   if (!email) return NextResponse.json({ error: 'Email is required' }, { status: 400 });
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   }
 
   const validModels = ['subscription', 'fixed_block', 'hybrid'];
-  if (agreement_model && !validModels.includes(agreement_model)) {
+  if (agreement_model && (typeof agreement_model !== 'string' || !validModels.includes(agreement_model))) {
     return NextResponse.json({ error: 'Invalid agreement_model' }, { status: 400 });
   }
 
@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'renewal_date must be a valid date (YYYY-MM-DD)' }, { status: 400 });
   }
 
-  const parsedWeeks = program_length_weeks != null ? parseInt(program_length_weeks) : null;
+  const parsedWeeks = program_length_weeks != null ? parseInt(program_length_weeks as string) : null;
   if (parsedWeeks !== null && (isNaN(parsedWeeks) || parsedWeeks < 1 || parsedWeeks > 260)) {
     return NextResponse.json({ error: 'program_length_weeks must be between 1 and 260' }, { status: 400 });
   }
@@ -120,12 +120,12 @@ export async function POST(req: NextRequest) {
       client_id:            clientId,
       pt_id:                user.id,
       status:               'active',
-      agreement_model:      agreement_model      ?? 'subscription',
-      start_date:           start_date           ?? new Date().toISOString().split('T')[0],
-      renewal_date:         renewal_date         || null,
+      agreement_model:      (agreement_model as string | undefined) ?? 'subscription',
+      start_date:           (start_date as string | undefined)      ?? new Date().toISOString().split('T')[0],
+      renewal_date:         (renewal_date as string | undefined)    || null,
       program_length_weeks: parsedWeeks,
-      manual_price_numeric: manual_price_numeric != null ? parseFloat(manual_price_numeric) : null,
-      manual_currency:      manual_currency      ?? 'GBP',
+      manual_price_numeric: manual_price_numeric != null ? parseFloat(manual_price_numeric as string) : null,
+      manual_currency:      (manual_currency as string | undefined) ?? 'GBP',
     }, { onConflict: 'client_id,pt_id' })
     .select()
     .single();
@@ -146,8 +146,8 @@ export async function POST(req: NextRequest) {
         .update({ stripe_customer_id: stripeCustomerId })
         .eq('id', agreement.id);
 
-      const amountPence = Math.round(parseFloat(manual_price_numeric) * 100);
-      const currency    = manual_currency ?? 'GBP';
+      const amountPence = Math.round(parseFloat(manual_price_numeric as string) * 100);
+      const currency    = (manual_currency as string | undefined) ?? 'GBP';
 
       if (agreement_model === 'subscription') {
         const sub = await createSubscription(stripeCustomerId, amountPence, currency, agreement.id);

@@ -8,10 +8,9 @@ import AddClientModal from '@/components/pt/AddClientModal';
 
 interface Props {
   clients: ClientRow[];
-  ptId:    string;
 }
 
-export default function ClientsPageClient({ clients: initial, ptId }: Props) {
+export default function ClientsPageClient({ clients: initial }: Props) {
   const [clients,       setClients]       = useState<ClientRow[]>(initial);
   const [selected,      setSelected]      = useState<ClientRow | null>(null);
   const [showAddModal,  setShowAddModal]  = useState(false);

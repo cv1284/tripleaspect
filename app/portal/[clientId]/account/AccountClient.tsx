@@ -230,7 +230,7 @@ export default function ClientAccountClient({ profile, clientId, agreement, ptNa
       <section className="card p-5 space-y-3">
         <h2 className="text-sm font-semibold text-slate-200">Security</h2>
         <p className="text-xs font-mono text-slate-500 leading-relaxed">
-          We'll send a password reset link to <span className="text-slate-300">{profile.email}</span>.
+          We&apos;ll send a password reset link to <span className="text-slate-300">{profile.email}</span>.
         </p>
         <button onClick={handlePasswordReset} disabled={sendingReset}
                 className="btn-ghost w-full justify-center py-2.5 text-sm">

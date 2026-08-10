@@ -15,8 +15,8 @@ export async function POST(req: NextRequest) {
   const body = await readJsonBody(req);
   if (body === null) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   const { name, category, description, coaching_cues, default_video_url, tags } = body as {
-    name?: any; category?: any; description?: any;
-    coaching_cues?: any; default_video_url?: any; tags?: any;
+    name?: unknown; category?: unknown; description?: unknown;
+    coaching_cues?: unknown; default_video_url?: unknown; tags?: unknown;
   };
 
   const validCategories = ['healing', 'forging', 'verse'];
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   if (!cleanName)                             return NextResponse.json({ error: 'Name is required' }, { status: 400 });
   if (cleanName.length > 100)                 return NextResponse.json({ error: 'Exercise name must be 100 characters or fewer' }, { status: 400 });
   if (!category)                              return NextResponse.json({ error: 'Category is required' }, { status: 400 });
-  if (!validCategories.includes(category))    return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
+  if (typeof category !== 'string' || !validCategories.includes(category)) return NextResponse.json({ error: 'Invalid category' }, { status: 400 });
 
   const TEXT_MAX = 2000;
   const URL_MAX  = 500;
@@ -67,9 +67,9 @@ export async function POST(req: NextRequest) {
     .insert({
       name:               cleanName,
       category,
-      description:        description ? stripHtmlTags(description) || null : null,
-      coaching_cues:      coaching_cues ? stripHtmlTags(coaching_cues) || null : null,
-      default_video_url:  default_video_url?.trim() || null,
+      description:        description ? stripHtmlTags(description as string) || null : null,
+      coaching_cues:      coaching_cues ? stripHtmlTags(coaching_cues as string) || null : null,
+      default_video_url:  (default_video_url as string | undefined)?.trim() || null,
       custom_youtube_url: null,
       is_custom:          true,
       created_by_pt_id:   user.id,

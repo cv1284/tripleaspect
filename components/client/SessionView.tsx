@@ -180,26 +180,6 @@ function NextSessionCard({ nextSession }: { nextSession: NextSessionData }) {
   );
 }
 
-// ─── Progress Bar ──────────────────────────────────────────
-
-function ProgressBar({ total, expanded }: { total: number; expanded: number }) {
-  const pct = total > 0 ? Math.round((expanded / total) * 100) : 0;
-  return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between">
-        <span className="text-2xs font-mono text-slate-600">Exercises reviewed</span>
-        <span className="text-2xs font-mono text-slate-500">{expanded}/{total}</span>
-      </div>
-      <div className="h-1 bg-surface-3 rounded-full overflow-hidden">
-        <div
-          className="h-full bg-indigo-500 rounded-full transition-all duration-500"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-    </div>
-  );
-}
-
 // ─── Empty State ──────────────────────────────────────────
 
 function EmptySession() {

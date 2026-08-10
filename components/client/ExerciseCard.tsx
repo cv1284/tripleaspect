@@ -181,7 +181,7 @@ export default function ExerciseCard({ item, index, category }: Props) {
           {/* Coaching cues */}
           {cues && (
             <div className="px-4 pt-3">
-              <p className="label mb-1.5">Coach's Cues</p>
+              <p className="label mb-1.5">Coach&apos;s Cues</p>
               <div className={`p-3 rounded-lg text-sm leading-relaxed ${cfg.bg} ${cfg.color} border border-current/20`}>
                 {cues}
               </div>

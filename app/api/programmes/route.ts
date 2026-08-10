@@ -38,18 +38,18 @@ export async function POST(req: NextRequest) {
   const body = await readJsonBody(req);
   if (body === null) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   const { title, description, category, total_weeks, is_public } = body as {
-    title?: any; description?: any; category?: any; total_weeks?: any; is_public?: any;
+    title?: unknown; description?: unknown; category?: unknown; total_weeks?: unknown; is_public?: unknown;
   };
   if (typeof title !== 'string' || !title.trim()) return NextResponse.json({ error: 'Title is required' }, { status: 400 });
   const cleanTitle = stripHtmlTags(title.trim());
   if (!cleanTitle) return NextResponse.json({ error: 'Title is required' }, { status: 400 });
 
   const validCategories = ['healing', 'forging', 'verse'];
-  if (category && !validCategories.includes(category)) {
+  if (category && (typeof category !== 'string' || !validCategories.includes(category))) {
     return NextResponse.json({ error: 'Invalid category. Must be one of: healing, forging, verse' }, { status: 400 });
   }
 
-  const parsedWeeks = parseInt(total_weeks ?? '4');
+  const parsedWeeks = parseInt(String(total_weeks ?? '4'));
   if (isNaN(parsedWeeks)) {
     return NextResponse.json({ error: 'total_weeks must be a number' }, { status: 400 });
   }
@@ -61,9 +61,9 @@ export async function POST(req: NextRequest) {
       pt_id:       user.id,
       title:       cleanTitle,
       description: typeof description === 'string' ? stripHtmlTags(description) || null : null,
-      category:    category || null,
+      category:    (category as string | undefined) || null,
       total_weeks: weeks,
-      is_public:   is_public ?? false,
+      is_public:   (is_public as boolean | undefined) ?? false,
     })
     .select('id, pt_id, title, description, category, total_weeks, is_public, created_at, updated_at')
     .single();
