@@ -32,6 +32,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     patch.title = stripHtmlTags((patch.title as string).trim());
     if (!patch.title) return NextResponse.json({ error: 'Title cannot be empty' }, { status: 400 });
   }
+  if ('notes' in patch && patch.notes !== null && typeof patch.notes !== 'string') {
+    return NextResponse.json({ error: 'notes must be a string' }, { status: 400 });
+  }
   if ('notes' in patch && typeof patch.notes === 'string') {
     patch.notes = stripHtmlTags(patch.notes.trim()) || null;
   }

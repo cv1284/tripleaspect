@@ -93,6 +93,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Invalid agreement_model. Must be one of: subscription, fixed_block, hybrid' }, { status: 400 });
   }
 
+  if ('start_date' in payload && payload.start_date !== null && !isValidDateString(payload.start_date)) {
+    return NextResponse.json({ error: 'start_date must be a valid date (YYYY-MM-DD)' }, { status: 400 });
+  }
+  if ('renewal_date' in payload && payload.renewal_date !== null && !isValidDateString(payload.renewal_date)) {
+    return NextResponse.json({ error: 'renewal_date must be a valid date (YYYY-MM-DD)' }, { status: 400 });
+  }
+
   // Coerce and validate program_length_weeks if provided
   if ('program_length_weeks' in payload && payload.program_length_weeks !== null) {
     const weeks = Number(payload.program_length_weeks);
@@ -109,6 +116,21 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       return NextResponse.json({ error: 'manual_price_numeric must be a number between 0 and 1,000,000' }, { status: 400 });
     }
     payload.manual_price_numeric = price;
+  }
+
+  // Validate manual_currency — column is varchar(3); accept only a 3-letter ISO code
+  if ('manual_currency' in payload && payload.manual_currency !== null) {
+    if (typeof payload.manual_currency !== 'string' || !/^[A-Z]{3}$/.test(payload.manual_currency)) {
+      return NextResponse.json({ error: 'manual_currency must be a 3-letter currency code (e.g. GBP)' }, { status: 400 });
+    }
+  }
+
+  // Sanitize billing_notes the same way as every other free-text field on this endpoint
+  if ('billing_notes' in payload && payload.billing_notes !== null) {
+    if (typeof payload.billing_notes !== 'string') {
+      return NextResponse.json({ error: 'billing_notes must be a string' }, { status: 400 });
+    }
+    payload.billing_notes = stripHtmlTags(payload.billing_notes.trim()).slice(0, 2000) || null;
   }
 
   // Sanitize and cap goal_text; validate goal_target_date is a real date

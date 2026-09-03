@@ -4,6 +4,30 @@ All notable changes to brigid.pro are documented here.
 
 ## [Unreleased]
 
+### Weekly Audit & Ship (2026-09-03 — 4 Bugs Fixed, 1 Backlog Feature Shipped)
+
+First weekly run in three weeks — the last dated entry here is 2026-08-09, and the most recent git commit before tonight was a daily-health-check status file for 2026-08-12 with no code changes since. No dev server/browser could be launched from this unattended run, so the full Suite A/B/C pass was driven by replicating `@supabase/ssr`'s cookie format in a small Node script and hitting the live `www.tripleaspect.fit` deployment directly with authenticated `fetch()` (same DB either way — local dev and prod share one Supabase project) rather than localhost.
+
+**BUG-104 (RESOLVED)**: `PATCH /api/templates/[id]` `notes` field had no `typeof` check, unlike `title` on the same endpoint. A non-string value (e.g. an array) skipped `stripHtmlTags()` and was coerced to a JSON-stringified value in the DB. Repro: `PATCH {"notes": ["<script>alert(1)</script>"]}` → 200, `notes` stored as the literal string `["<script>alert(1)</script>"]`. Same bug class as the earlier BUG-98 (programmes description).
+- **Fix**: added the same `typeof !== 'string'` guard used for `title`. `app/api/templates/[id]/route.ts`.
+
+**BUG-105 (RESOLVED)**: `PATCH /api/agreements/[id]` `billing_notes` had zero validation — no `typeof` check *and* no `stripHtmlTags`, unlike every other free-text field on this endpoint (`goal_text`, milestone `text`). Even a well-formed string was never sanitized. Repro: `PATCH {"billing_notes":"<script>alert(3)</script>Monthly plan"}` → 200, raw `<script>` tag persisted verbatim.
+- **Fix**: added `typeof` guard + `stripHtmlTags().slice(0, 2000)`, matching the pattern already used for `goal_text`. `app/api/agreements/[id]/route.ts`.
+
+**BUG-106 (RESOLVED)**: `PATCH /api/agreements/[id]` `start_date`/`renewal_date` had no `isValidDateString` check, unlike `POST /api/clients` which validates the same two fields. Repro: `PATCH {"start_date":"2026-13-45"}` → raw Postgres 500 `"date/time field value out of range"`; `PATCH {"renewal_date":"not-a-date"}` → raw 500 `"invalid input syntax for type date"`. Same bug class as the earlier BUG-99/BUG-BRIGID-05 (raw DB error leaking as a 500 instead of a clean 400).
+- **Fix**: added `isValidDateString` guards for both fields. `app/api/agreements/[id]/route.ts`.
+
+**BUG-107 (RESOLVED)**: `PATCH /api/agreements/[id]` `manual_currency` had no length/format validation. Repro: a long garbage string → raw Postgres 500 `"value too long for type character varying(3)"`. The identical gap existed in `POST /api/clients` (same column, same missing guard) — fixed there too since it's the same root cause and a one-line change.
+- **Fix**: added a `^[A-Z]{3}$` guard to both routes. `app/api/agreements/[id]/route.ts`, `app/api/clients/route.ts`.
+
+**Programme sharing regression check**: full cross-PT path re-verified — PT2 (Priya) opened PT A's public "Deadlift PB" programme, duplicated it (16 sessions × 3 items survived the copy), saved the copy once (items still present after save — the specific regression this check guards against), assigned it to her client Morgan Reyes, and Morgan's portal showed real sessions with real prescribed metrics. Spot-checked PT2's custom "Eccentric Heel Drop" exercise is visible to another PT tagged `is_shared: true` (community). All PASS. Cleanup caught and removed 9 leftover future-dated sessions on Morgan Reyes left over from an incomplete prior run (this week's own 16 plus a further 9 pre-existing = 25 found and deleted), alongside a programme titled "ORPHANED TEST ARTIFACT — please delete (2026-08-11 nightly...)" that had never been cleaned up — both consistent with the 2026-08-12 run's DB-sanitation step not completing.
+
+**Feature (Technical Debt — "Rate limiting on API routes")**: `POST /api/exercises` (custom exercise creation) had no rate limit, unlike `bug-reports`/`resend-invite`/`portal/photos`. Added a 30-per-PT-per-hour limit using the same count-query pattern (no new table, column, or dependency — reuses `exercises.created_at`). `app/api/exercises/route.ts`. (Note: Notion's "Lint cleanup — 56 errors + 5 warnings" backlog item, listed as the top Technical Debt item, was found already resolved in code — `npm run lint` came back with only 4 pre-existing warnings and zero errors. Notion updated to reflect this instead of re-doing the work.)
+
+**Data-boundary audit**: full pass over all ~40 routes under `app/api/**/route.ts`. `admin/delete-user/[id]` and `clients/[id]/gdpr-delete` (both permanently delete auth users) were reviewed statically only, not live-tested, to avoid risking the standing fixture accounts. All other routes came back clean — the four bugs above were the only real findings.
+
+**DB sanitation**: deleted the orphaned "please delete" test programme and the 25 stale/newly-created sessions on Morgan Reyes noted above. Admin-level scan (service-role key, bypasses RLS) for `ORPHANED`/`<script>`/`alert(` patterns across `exercises`, `programmes`, `session_templates`, `client_agreements`, `sessions`, and `profiles` found nothing else stale. All standing fixtures (5 accounts, 4 demo programmes) untouched.
+
 ### Weekly Audit & Ship (2026-08-09 — 3 Bugs Fixed, 1 Backlog Feature Shipped)
 
 Reviewed the standing `bug_reports` queue (10 open rows) alongside a targeted live Suite A/B/C pass via authenticated `fetch()` against routes flagged since the last audit. Several previously-fixed bugs (BUG-98, BUG-96, BUG-81) were still marked `open` in the `bug_reports` table despite being resolved in code/Notion on 2026-08-02 or earlier — DB status just hadn't been synced; noted for future runs.

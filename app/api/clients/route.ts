@@ -70,6 +70,11 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Column is varchar(3); accept only a 3-letter ISO code (same gap fixed in PATCH /api/agreements/[id])
+  if (manual_currency != null && (typeof manual_currency !== 'string' || !/^[A-Z]{3}$/.test(manual_currency))) {
+    return NextResponse.json({ error: 'manual_currency must be a 3-letter currency code (e.g. GBP)' }, { status: 400 });
+  }
+
   const admin    = createAdminClient();
   const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
   let   clientId = '';

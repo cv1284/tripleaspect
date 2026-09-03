@@ -12,6 +12,21 @@ export async function POST(req: NextRequest) {
     .from('profiles').select('role').eq('id', user.id).single();
   if (profile?.role !== 'pt') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
+  // Rate limit: 30 custom exercises per PT per hour — same count-query pattern as
+  // bug-reports/portal/photos (no new table or dependency needed).
+  const windowStart = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const { count } = await supabase
+    .from('exercises')
+    .select('id', { count: 'exact', head: true })
+    .eq('created_by_pt_id', user.id)
+    .gte('created_at', windowStart);
+  if ((count ?? 0) >= 30) {
+    return NextResponse.json(
+      { error: 'Too many exercises created — please wait before adding more.' },
+      { status: 429 },
+    );
+  }
+
   const body = await readJsonBody(req);
   if (body === null) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   const { name, category, description, coaching_cues, default_video_url, tags } = body as {
